@@ -3,7 +3,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/PeterGriffinSr/releases"><img src="https://img.shields.io/github/release/PeterGriffinSr/Flint" alt="GitHub release"></a>
+  <a href="https://github.com/flint-language/flint/releases"><img src="https://img.shields.io/github/release/flint-language/flint" alt="GitHub release"></a>
   <a href="https://discord.gg/kAPNzu6TGr"><img src="https://img.shields.io/discord/1442183644624978101?color=blue" alt="Discord chat"></a>
 </p>
 
