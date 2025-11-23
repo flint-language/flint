@@ -4,13 +4,13 @@ use flint/int
 use flint/float
 
 // ADT
-pub type Result(ok, err) =
-    | Ok(ok)
-    | Err(err)
+// pub type Result(ok, err) =
+//     | Ok(ok)
+//     | Err(err)
 
 // Record
 pub type User {
-    User(id: Int, name: Str, active: Bool)
+    id: Int, name: String, active: Bool
 }
 
 pub fn describe_angle(angle: Float) {

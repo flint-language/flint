@@ -77,6 +77,7 @@ const (
 	RArrow     // '->'
 	DotDot     // '..'
 	At         // '@'
+	Underscore // '_'
 	EndOfFile
 
 	// Keywords
@@ -92,6 +93,7 @@ const (
 	KwIn
 	KwInt
 	KwList
+	KwMatch
 	KwMut
 	KwNil
 	KwPanic
@@ -117,6 +119,7 @@ var KeywordMap = map[string]TokenKind{
 	"in":     KwIn,
 	"Int":    KwInt,
 	"List":   KwList,
+	"match":  KwMatch,
 	"mut":    KwMut,
 	"Nil":    KwNil,
 	"panic":  KwPanic,
@@ -138,6 +141,8 @@ func LookupIdentifier(name string) TokenKind {
 
 var precedence = map[TokenKind]int{
 	VbarVbar:   1,
+	Pipe:       1,
+	Colon:      1,
 	AmperAmper: 2,
 	EqualEqual: 3,
 	NotEqual:   3,
@@ -155,12 +160,14 @@ var precedence = map[TokenKind]int{
 	PlusDot:  5,
 	Minus:    5,
 	MinusDot: 5,
+	LtGt:     5,
 
 	Star:     6,
 	StarDot:  6,
 	Slash:    6,
 	SlashDot: 6,
 	Percent:  6,
+	DotDot:   6,
 }
 
 func (k TokenKind) Precedence() int {

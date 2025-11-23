@@ -114,6 +114,10 @@ func (l *Lexer) Next() Token {
 			l.advanceRune()
 			return l.makeToken(LessDot, "<.", startlineNumber, startcolumnNumber)
 		}
+		if l.peekRuneAt(0) == '>' {
+			l.advanceRune()
+			return l.makeToken(LtGt, "<>", startlineNumber, startcolumnNumber)
+		}
 		return l.makeToken(Less, "<", startlineNumber, startcolumnNumber)
 
 	case '>':
