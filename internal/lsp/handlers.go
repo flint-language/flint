@@ -87,14 +87,12 @@ func handleCompletion(req RequestMessage) {
 	text := docs[params.TextDocument.URI]
 	lines := strings.Split(text, "\n")
 	line := ""
-
 	if params.Position.Line < len(lines) {
 		line = lines[params.Position.Line]
 	}
 
 	prefix := ""
 	fields := strings.Fields(line[:params.Position.Character])
-
 	if len(fields) > 0 {
 		prefix = fields[len(fields)-1]
 	}
@@ -113,11 +111,8 @@ func handleCompletion(req RequestMessage) {
 	for _, sym := range symbols[params.TextDocument.URI] {
 		if strings.HasPrefix(sym.Name, prefix) {
 			kind := 6
-			switch sym.Kind {
-			case FunctionSymbol:
+			if sym.Kind == FunctionSymbol {
 				kind = 3
-			case VariableSymbol:
-				kind = 6
 			}
 			suggestions = append(suggestions, CompletionItem{
 				Label: sym.Name,
