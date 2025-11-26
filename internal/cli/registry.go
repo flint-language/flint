@@ -2,7 +2,7 @@ package cli
 
 import (
 	"flag"
-	"flint/pkg/flint"
+	"flint/internal/version"
 	"fmt"
 	"os"
 )
@@ -53,7 +53,7 @@ func init() {
 			Name:        "version",
 			Description: "Print the Flint compiler version.",
 			Run: func(fs *flag.FlagSet) {
-				fmt.Println(flint.FullVersion())
+				fmt.Println(version.FullVersion())
 			},
 		},
 		{

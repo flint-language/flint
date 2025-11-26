@@ -1,5 +1,9 @@
 use flint/io.{println}
 
+fn add(x: Int, y: Int) Int {
+    x + y
+}
+
 pub fn main() Nil {
     println("Hello, world!")
 }

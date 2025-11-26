@@ -1,8 +1,9 @@
 package cli
 
 import (
+	"flint/internal/lexer"
+	"flint/internal/parser"
 	"flint/internal/typechecker"
-	"flint/pkg/flint"
 	"fmt"
 	"os"
 )
@@ -12,18 +13,19 @@ func fatal(msg string) {
 	os.Exit(1)
 }
 
-func loadAndParse(filename string) ([]flint.Expr, *typechecker.TypeChecker) {
+func loadAndParse(filename string) ([]parser.Expr, *typechecker.TypeChecker) {
+	tc := typechecker.New()
 	src, err := os.ReadFile(filename)
 	if err != nil {
 		fatal(fmt.Sprintf("error reading %s: %v", filename, err))
 	}
 
-	tokens, err := flint.Lex(string(src), filename)
+	tokens, err := lexer.Tokenize(string(src), filename)
 	if err != nil {
 		fatal(err.Error())
 	}
 
-	prog, errs := flint.Parse(tokens)
+	prog, errs := parser.ParseProgram(tokens)
 	if len(errs) > 0 {
 		for _, e := range errs {
 			fmt.Fprintln(os.Stderr, e)
@@ -31,7 +33,6 @@ func loadAndParse(filename string) ([]flint.Expr, *typechecker.TypeChecker) {
 		os.Exit(1)
 	}
 
-	tc := typechecker.New()
 	for _, ex := range prog.Exprs {
 		if _, err := tc.CheckExpr(ex); err != nil {
 			fatal("Type error: " + err.Error())

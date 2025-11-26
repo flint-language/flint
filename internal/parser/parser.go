@@ -222,7 +222,7 @@ func (p *Parser) parsePrimary() Expr {
 		case lexer.KwFn:
 			return p.parseFunc(true)
 		case lexer.KwType:
-			return p.parseTypeDecl(true)
+			return p.recordTypeExpr(true)
 		default:
 			p.error("expected `fn` or `type` after `pub`")
 			return nil
@@ -242,7 +242,7 @@ func (p *Parser) parsePrimary() Expr {
 	case lexer.LeftBracket:
 		return p.parseList()
 	case lexer.KwType:
-		return p.parseTypeDecl(false)
+		return p.recordTypeExpr(false)
 	default:
 		p.error(fmt.Sprintf("unexpected token %q (%v) at %d:%d", tok.Lexeme, tok.Kind, tok.Line, tok.Column))
 		return nil
@@ -606,6 +606,9 @@ func (p *Parser) parseType() Expr {
 	case lexer.KwInt, lexer.KwFloat, lexer.KwBool, lexer.KwByte, lexer.KwString, lexer.KwNil:
 		p.eat()
 		return &TypeExpr{Name: tok.Lexeme, Pos: tok}
+	case lexer.Identifier:
+		p.eat()
+		return &TypeExpr{Name: tok.Lexeme, Pos: tok}
 	case lexer.KwList:
 		p.eat()
 		var elemType Expr
@@ -638,7 +641,7 @@ func (p *Parser) parseType() Expr {
 	}
 }
 
-func (p *Parser) parseTypeDecl(pub bool) Expr {
+func (p *Parser) recordTypeExpr(pub bool) Expr {
 	p.expect(lexer.KwType)
 	nameTok, ok := p.expect(lexer.Identifier)
 	if !ok {

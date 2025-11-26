@@ -1,10 +1,10 @@
 package main
 
 import (
-	"flint/internal/cli"
+	"flint/pkg/flint"
 	"os"
 )
 
 func main() {
-	cli.RunCLI(os.Args)
+	flint.RunCli(os.Args)
 }

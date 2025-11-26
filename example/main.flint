@@ -4,8 +4,6 @@ pub type User {
     id: Int, name: String, active: Bool
 }
 
-pub fn main() Nil {
-    for i, item in User {
-        io:println(i <> ": " <> item.name)
-    }
+pub fn main() User {
+    val person: User = User(1.5, "Bob", True)
 }
