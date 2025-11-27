@@ -13,7 +13,7 @@ func fatal(msg string) {
 	os.Exit(1)
 }
 
-func loadAndParse(filename string) ([]parser.Expr, *typechecker.TypeChecker) {
+func loadAndParse(filename string) (*parser.Program, *typechecker.TypeChecker) {
 	tc := typechecker.New()
 	src, err := os.ReadFile(filename)
 	if err != nil {
@@ -38,6 +38,5 @@ func loadAndParse(filename string) ([]parser.Expr, *typechecker.TypeChecker) {
 			fatal("Type error: " + err.Error())
 		}
 	}
-
-	return prog.Exprs, tc
+	return prog, tc
 }
