@@ -57,7 +57,7 @@ func (p *Parser) synchronize() {
 	for p.cur().Kind != lexer.EndOfFile {
 		switch p.cur().Kind {
 		case lexer.KwFn, lexer.KwVal, lexer.KwMut, lexer.KwIf,
-			lexer.KwFor, lexer.KwType, lexer.KwMatch, lexer.KwUse:
+			lexer.KwType, lexer.KwMatch, lexer.KwUse:
 			return
 		case lexer.RightBrace:
 			p.eat()

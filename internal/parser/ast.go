@@ -131,11 +131,12 @@ func (d *MutDeclExpr) NodeType() string {
 }
 
 type FuncDeclExpr struct {
-	Pub    bool
-	Name   lexer.Token
-	Params []Param
-	Ret    Expr
-	Body   Expr
+	Pub       bool
+	Recursion bool
+	Name      lexer.Token
+	Params    []Param
+	Ret       Expr
+	Body      Expr
 }
 
 func (f *FuncDeclExpr) exprNode() {}
@@ -240,19 +241,6 @@ type PipelineExpr struct {
 func (p *PipelineExpr) exprNode() {}
 func (p *PipelineExpr) NodeType() string {
 	return "PipelineExpr"
-}
-
-type ForExpr struct {
-	Vars     []Expr
-	Iterable Expr
-	Where    Expr
-	Body     Expr
-	Pos      lexer.Token
-}
-
-func (f *ForExpr) exprNode() {}
-func (f *ForExpr) NodeType() string {
-	return "ForExpr"
 }
 
 type ListExpr struct {

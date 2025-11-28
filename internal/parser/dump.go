@@ -66,8 +66,8 @@ func dump(e Expr, indent string, isLast bool) string {
 			dump(n.Value, indent+"   ", true),
 		)
 	case *FuncDeclExpr:
-		out := fmt.Sprintf("%s%sFuncDecl(pub=%t, name=%s)\n",
-			indent, connector, n.Pub, n.Name.Lexeme)
+		out := fmt.Sprintf("%s%sFuncDecl(pub=%t, rec=%t, name=%s)\n",
+			indent, connector, n.Pub, n.Recursion, n.Name.Lexeme)
 		out += fmt.Sprintf("%sParams:\n", nextIndent)
 		for i, p := range n.Params {
 			paramStr := p.Name.Lexeme
@@ -136,30 +136,6 @@ func dump(e Expr, indent string, isLast bool) string {
 		out := fmt.Sprintf("%s%sPipelineExpr\n", indent, connector)
 		out += fmt.Sprintf("%sLeft:\n%s\n", nextIndent, dump(n.Left, nextIndent+"  ", true))
 		out += fmt.Sprintf("%sRight:\n%s", nextIndent, dump(n.Right, nextIndent+"  ", true))
-		return out
-	case *ForExpr:
-		out := fmt.Sprintf("%s%sForExpr\n", indent, connector)
-		nextIndent := indent + "  "
-
-		if len(n.Vars) > 0 {
-			out += fmt.Sprintf("%sVars:\n", nextIndent)
-			for i, v := range n.Vars {
-				conn := "├─ "
-				if i == len(n.Vars)-1 {
-					conn = "└─ "
-				}
-				out += fmt.Sprintf("%s%s%s\n", nextIndent+"  ", conn, dump(v, nextIndent+"    ", true))
-			}
-		}
-		if n.Iterable != nil {
-			out += fmt.Sprintf("%sIterable:\n%s\n", nextIndent, dump(n.Iterable, nextIndent+"  ", true))
-		}
-		if n.Where != nil {
-			out += fmt.Sprintf("%sWhere:\n%s\n", nextIndent, dump(n.Where, nextIndent+"  ", true))
-		}
-		if n.Body != nil {
-			out += fmt.Sprintf("%sBody:\n%s", nextIndent, dump(n.Body, nextIndent+"  ", true))
-		}
 		return out
 	case *ListExpr:
 		out := fmt.Sprintf("%s%sList\n", indent, connector)

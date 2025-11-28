@@ -36,7 +36,7 @@ func (tc *TypeChecker) Check(expr parser.Expr) *Type {
 	if tc.ctx == TopLevel {
 		switch expr.(type) {
 		case *parser.ValDeclExpr, *parser.MutDeclExpr, *parser.IfExpr,
-			*parser.ForExpr, *parser.MatchExpr, *parser.PipelineExpr:
+			*parser.MatchExpr, *parser.PipelineExpr:
 			tc.error(lexer.Token{}, fmt.Sprintf("%T is not allowed at top-level; must be inside a function/block", expr))
 			return &Type{TKind: TyError}
 		}
@@ -88,8 +88,6 @@ func (tc *TypeChecker) Check(expr parser.Expr) *Type {
 		return tc.visitPipeline(e)
 	case *parser.ListExpr:
 		return tc.visitList(e, nil)
-	case *parser.ForExpr:
-		return tc.visitFor(e)
 	default:
 		return &Type{TKind: TyError}
 	}
@@ -508,93 +506,6 @@ func (tc *TypeChecker) visitList(l *parser.ListExpr, annotated *Type) *Type {
 		}
 	}
 	return &Type{TKind: TyList, Elem: expected}
-}
-
-func (tc *TypeChecker) visitFor(f *parser.ForExpr) *Type {
-	iterableTy := tc.Check(f.Iterable)
-	if iterableTy == nil || iterableTy.TKind == TyError {
-		return &Type{TKind: TyError}
-	}
-	var elem *Type
-	switch iterableTy.TKind {
-	case TyList:
-		if iterableTy.Elem == nil {
-			tc.error(f.Pos, "cannot iterate over List(<unknown>)")
-			return &Type{TKind: TyError}
-		}
-		elem = iterableTy.Elem
-	case TyRange:
-		elem = &Type{TKind: TyInt}
-	case TyTuple:
-		elem = &Type{TKind: TyTuple, TElems: iterableTy.TElems}
-	default:
-		tc.error(f.Pos, fmt.Sprintf("cannot iterate over type %s", iterableTy.String()))
-		return &Type{TKind: TyError}
-	}
-	expectedVars := 1
-	if elem.TKind == TyTuple {
-		expectedVars = len(elem.TElems)
-	}
-	if len(f.Vars) == 1 {
-		if tuplePat, ok := f.Vars[0].(*parser.TupleExpr); ok {
-			if len(tuplePat.Elements) != expectedVars {
-				tc.error(f.Pos, fmt.Sprintf(
-					"tuple pattern has %d elements but iterable element tuple has %d",
-					len(tuplePat.Elements), expectedVars))
-				return &Type{TKind: TyError}
-			}
-		} else if expectedVars != 1 {
-			tc.error(f.Pos, fmt.Sprintf("expected %d loop variables, got 1", expectedVars))
-			return &Type{TKind: TyError}
-		}
-	} else {
-		if len(f.Vars) != expectedVars {
-			tc.error(f.Pos, fmt.Sprintf(
-				"expected %d loop variable(s), got %d",
-				expectedVars, len(f.Vars)))
-			return &Type{TKind: TyError}
-		}
-	}
-	oldEnv := tc.env
-	tc.env = NewEnv(oldEnv)
-	if elem.TKind == TyTuple {
-		if len(f.Vars) == 1 {
-			if tp, ok := f.Vars[0].(*parser.TupleExpr); ok {
-				for i, sub := range tp.Elements {
-					ident, ok := sub.(*parser.Identifier)
-					if !ok {
-						tc.error(tp.Pos, "tuple pattern elements must be identifiers")
-						continue
-					}
-					tc.env.Set(ident.Name, elem.TElems[i])
-				}
-				goto CHECK_BODY
-			}
-		}
-	} else {
-		for _, v := range f.Vars {
-			ident, ok := v.(*parser.Identifier)
-			if !ok {
-				tc.error(f.Pos, "tuple pattern used with non-tuple iterable element")
-				continue
-			}
-			tc.env.Set(ident.Name, elem)
-		}
-	}
-CHECK_BODY:
-	if f.Where != nil {
-		whereTy := tc.Check(f.Where)
-		if whereTy == nil || whereTy.TKind != TyBool {
-			tc.error(f.Pos, fmt.Sprintf(
-				"where clause must be Bool, got %s",
-				whereTy.String()))
-			tc.env = oldEnv
-			return &Type{TKind: TyError}
-		}
-	}
-	_ = tc.Check(f.Body)
-	tc.env = oldEnv
-	return &Type{TKind: TyNil}
 }
 
 // TODO: Add records

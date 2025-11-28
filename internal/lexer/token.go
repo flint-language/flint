@@ -91,7 +91,6 @@ const (
 	KwElse
 	KwFloat
 	KwFn
-	KwFor
 	KwIf
 	KwIn
 	KwInt
@@ -117,9 +116,7 @@ var KeywordMap = map[string]TokenKind{
 	"False":  Bool,
 	"Float":  KwFloat,
 	"fn":     KwFn,
-	"for":    KwFor,
 	"if":     KwIf,
-	"in":     KwIn,
 	"Int":    KwInt,
 	"List":   KwList,
 	"match":  KwMatch,
@@ -132,7 +129,6 @@ var KeywordMap = map[string]TokenKind{
 	"type":   KwType,
 	"use":    KwUse,
 	"val":    KwVal,
-	"where":  KwWhere,
 }
 
 var precedence = map[TokenKind]int{

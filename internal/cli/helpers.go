@@ -38,5 +38,9 @@ func loadAndParse(filename string) (*parser.Program, *typechecker.TypeChecker) {
 			fatal("Type error: " + err.Error())
 		}
 	}
+
+	for _, ex := range prog.Exprs {
+		fmt.Println(parser.DumpExpr(ex))
+	}
 	return prog, tc
 }

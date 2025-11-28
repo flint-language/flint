@@ -27,11 +27,90 @@ func ParseProgram(tokens []lexer.Token) (*Program, []string) {
 		}
 		out.Exprs = append(out.Exprs, expr)
 	}
+	dectectRecursion(out)
 	return out, p.errors
 }
 
 func new(tokens []lexer.Token) *Parser {
 	return &Parser{tokens: tokens, pos: 0, errors: []string{}}
+}
+
+func dectectRecursion(prog *Program) {
+	for _, e := range prog.Exprs {
+		fn, ok := e.(*FuncDeclExpr)
+		if !ok {
+			continue
+		}
+		if containsSelfCall(fn.Body, fn.Name.Lexeme) {
+			fn.Recursion = true
+		}
+	}
+}
+
+func containsSelfCall(e Expr, fnName string) bool {
+	switch n := e.(type) {
+	case *CallExpr:
+		if id, ok := n.Callee.(*Identifier); ok {
+			if id.Name == fnName {
+				return true
+			}
+		}
+		for _, arg := range n.Args {
+			if containsSelfCall(arg, fnName) {
+				return true
+			}
+		}
+		return false
+	case *BlockExpr:
+		for _, x := range n.Exprs {
+			if containsSelfCall(x, fnName) {
+				return true
+			}
+		}
+	case *IfExpr:
+		if containsSelfCall(n.Cond, fnName) ||
+			containsSelfCall(n.Then, fnName) ||
+			(n.Else != nil && containsSelfCall(n.Else, fnName)) {
+			return true
+		}
+	case *MatchExpr:
+		for _, arm := range n.Arms {
+			if containsSelfCall(arm.Pattern, fnName) ||
+				(arm.Guard != nil && containsSelfCall(arm.Guard, fnName)) ||
+				containsSelfCall(arm.Body, fnName) {
+				return true
+			}
+		}
+	case *InfixExpr:
+		return containsSelfCall(n.Left, fnName) ||
+			containsSelfCall(n.Right, fnName)
+	case *PrefixExpr:
+		return containsSelfCall(n.Right, fnName)
+	case *PipelineExpr:
+		return containsSelfCall(n.Left, fnName) ||
+			containsSelfCall(n.Right, fnName)
+	case *TupleExpr:
+		for _, t := range n.Elements {
+			if containsSelfCall(t, fnName) {
+				return true
+			}
+		}
+	case *ListExpr:
+		for _, el := range n.Elements {
+			if containsSelfCall(el, fnName) {
+				return true
+			}
+		}
+	case *FieldAccessExpr:
+		return containsSelfCall(n.Left, fnName)
+	case *QualifiedExpr:
+		return containsSelfCall(n.Left, fnName)
+	case *ValDeclExpr:
+		return containsSelfCall(n.Value, fnName)
+	case *MutDeclExpr:
+		return containsSelfCall(n.Value, fnName)
+	}
+	return false
 }
 
 func (p *Parser) parseExpression(minPrec int) Expr {
@@ -233,8 +312,6 @@ func (p *Parser) parsePrimary() Expr {
 		return p.parseIf()
 	case lexer.KwMatch:
 		return p.parseMatch()
-	case lexer.KwFor:
-		return p.parseForExpr()
 	case lexer.LeftBracket:
 		return p.parseList()
 	case lexer.KwType:
@@ -540,48 +617,6 @@ func (p *Parser) parseMatch() Expr {
 	return &MatchExpr{
 		Value: value,
 		Arms:  arms,
-	}
-}
-
-func (p *Parser) parseForExpr() Expr {
-	p.eat()
-	var vars []Expr
-	for {
-		expr := p.parsePrimary()
-		if expr == nil {
-			return nil
-		}
-		vars = append(vars, expr)
-
-		if p.cur().Kind == lexer.Comma {
-			p.eat()
-			continue
-		}
-		break
-	}
-	_, ok := p.expect(lexer.KwIn)
-	if !ok {
-		p.synchronize()
-		return nil
-	}
-	iterable := p.parseExpression(0)
-	if iterable == nil {
-		return nil
-	}
-	var whereExpr Expr
-	if p.cur().Kind == lexer.KwWhere {
-		p.eat()
-		whereExpr = p.parseExpression(0)
-	}
-	body := p.parseBlock()
-	if body == nil {
-		return nil
-	}
-	return &ForExpr{
-		Vars:     vars,
-		Iterable: iterable,
-		Where:    whereExpr,
-		Body:     body,
 	}
 }
 
