@@ -3,6 +3,7 @@ module flint
 go 1.25.4
 
 require (
+	github.com/BurntSushi/toml v1.5.0 // indirect
 	github.com/llir/llvm v0.3.6 // indirect
 	github.com/mewmew/float v0.0.0-20201204173432-505706aa38fa // indirect
 	github.com/pkg/errors v0.9.1 // indirect
