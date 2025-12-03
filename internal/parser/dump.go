@@ -9,182 +9,262 @@ func DumpExpr(e Expr) string {
 	return dump(e, "", true)
 }
 
-func dump(e Expr, indent string, isLast bool) string {
-	connector := "├─ "
-	nextIndent := indent + "│  "
-	if isLast {
-		connector = "└─ "
-		nextIndent = indent + "   "
+func node(indent string, last bool, label string) (string, string) {
+	branch := "├─ "
+	next := indent + "│  "
+	if last {
+		branch = "└─ "
+		next = indent + "   "
 	}
+	return indent + branch + label + "\n", next
+}
+
+func dump(e Expr, indent string, last bool) string {
 	switch n := e.(type) {
 	case *Identifier:
-		return fmt.Sprintf("%s%sIdentifier(%s)", indent, connector, n.Name)
+		line, _ := node(indent, last, "Identifier "+n.Name)
+		return line
 	case *IntLiteral:
-		return fmt.Sprintf("%s%sInt(%d)", indent, connector, n.Value)
+		line, _ := node(indent, last, fmt.Sprintf("Int %d", n.Value))
+		return line
 	case *FloatLiteral:
-		return fmt.Sprintf("%s%sFloat(%g)", indent, connector, n.Value)
+		line, _ := node(indent, last, fmt.Sprintf("Float %g", n.Value))
+		return line
 	case *StringLiteral:
-		return fmt.Sprintf("%s%sString(%s)", indent, connector, n.Value)
+		line, _ := node(indent, last, fmt.Sprintf("String %q", n.Value))
+		return line
 	case *ByteLiteral:
-		return fmt.Sprintf("%s%sByte(%c)", indent, connector, n.Value)
+		line, _ := node(indent, last, fmt.Sprintf("Byte '%c'", n.Value))
+		return line
 	case *BoolLiteral:
-		return fmt.Sprintf("%s%sBool(%t)", indent, connector, n.Value)
+		line, _ := node(indent, last, fmt.Sprintf("Bool %t", n.Value))
+		return line
 	case *PrefixExpr:
-		return fmt.Sprintf("%s%sPrefix(%s)\n%s",
-			indent, connector, n.Operator.Lexeme,
-			dump(n.Right, nextIndent, true),
-		)
+		line, next := node(indent, last, "Prefix "+n.Operator.Lexeme)
+		return line + dump(n.Right, next, true)
 	case *InfixExpr:
-		return fmt.Sprintf("%s%sInfix(%s)\n%s\n%s",
-			indent, connector, n.Operator.Lexeme,
-			dump(n.Left, nextIndent, false),
-			dump(n.Right, nextIndent, true),
-		)
+		line, next := node(indent, last, "Infix "+n.Operator.Lexeme)
+		return line +
+			dump(n.Left, next, false) +
+			dump(n.Right, next, true)
 	case *CallExpr:
-		out := fmt.Sprintf("%s%sCall\n%sCallee:\n%s\n%sArgs:\n",
-			indent, connector, nextIndent, dump(n.Callee, nextIndent+"  ", true), nextIndent)
-		for i, a := range n.Args {
-			out += dump(a, nextIndent+"  ", i == len(n.Args)-1) + "\n"
+		line, next := node(indent, last, "Call")
+		var out strings.Builder
+		out.WriteString(line)
+		cLine, cNext := node(next, false, "Callee")
+		out.WriteString(cLine)
+		out.WriteString(dump(n.Callee, cNext, true))
+		if len(n.Args) > 0 {
+			aLine, aNext := node(next, true, "Args")
+			out.WriteString("\n")
+			out.WriteString(aLine)
+			for i, arg := range n.Args {
+				out.WriteString(dump(arg, aNext, i == len(n.Args)-1))
+			}
 		}
-		return strings.TrimRight(out, "\n")
+		return out.String()
+	case *PipelineExpr:
+		line, next := node(indent, last, "Pipeline")
+		return line +
+			dump(n.Left, next, false) +
+			dump(n.Right, next, true)
+	case *QualifiedExpr:
+		line, next := node(indent, last, "Qualified")
+		return line +
+			dump(n.Left, next, false) +
+			nodeWith(next, true, "Identifier "+n.Right.Lexeme)
+	case *FieldAccessExpr:
+		line, next := node(indent, last, "FieldAccess")
+		return line +
+			dump(n.Left, next, false) +
+			nodeWith(next, true, "Identifier "+n.Right)
+	case *TupleExpr:
+		line, next := node(indent, last, "Tuple")
+		var out strings.Builder
+		out.WriteString(line)
+		for i, e := range n.Elements {
+			out.WriteString(dump(e, next, i == len(n.Elements)-1))
+		}
+		return out.String()
+	case *ListExpr:
+		line, next := node(indent, last, "List")
+		var out strings.Builder
+		out.WriteString(line)
+		for i, e := range n.Elements {
+			out.WriteString(dump(e, next, i == len(n.Elements)-1))
+		}
+		return out.String()
+	case *BlockExpr:
+		line, next := node(indent, last, "Block")
+		var out strings.Builder
+		out.WriteString(line)
+		for i, e := range n.Exprs {
+			out.WriteString(dump(e, next, i == len(n.Exprs)-1))
+		}
+		return out.String()
+	case *IfExpr:
+		line, next := node(indent, last, "IfExpr")
+		var out strings.Builder
+		out.WriteString(line)
+		cLine, cNext := node(next, false, "Cond")
+		out.WriteString(cLine)
+		out.WriteString(dump(n.Cond, cNext, true))
+		tLine, tNext := node(next, n.Else == nil, "Then")
+		out.WriteString("\n")
+		out.WriteString(tLine)
+		out.WriteString(dump(n.Then, tNext, true))
+		if n.Else != nil {
+			eLine, eNext := node(next, true, "Else")
+			out.WriteString("\n")
+			out.WriteString(eLine)
+			out.WriteString(dump(n.Else, eNext, true))
+		}
+		return out.String()
+	case *MatchExpr:
+		line, next := node(indent, last, "MatchExpr")
+		var out strings.Builder
+		out.WriteString(line)
+		vLine, vNext := node(next, false, "Value")
+		out.WriteString(vLine)
+		out.WriteString(dump(n.Value, vNext, true))
+		aLine, aNext := node(next, true, "Arms")
+		out.WriteString("\n")
+		out.WriteString(aLine)
+		for i, arm := range n.Arms {
+			armLast := i == len(n.Arms)-1
+			armLine, armNext := node(aNext, armLast, "Arm")
+			out.WriteString(armLine)
+			pLine, pNext := node(armNext, false, "Pattern")
+			out.WriteString(pLine)
+			out.WriteString(dump(arm.Pattern, pNext, true))
+			if arm.Guard != nil {
+				gLine, gNext := node(armNext, false, "Guard")
+				out.WriteString("\n")
+				out.WriteString(gLine)
+				out.WriteString(dump(arm.Guard, gNext, true))
+			}
+			bLine, bNext := node(armNext, true, "Body")
+			out.WriteString("\n")
+			out.WriteString(bLine)
+			out.WriteString(dump(arm.Body, bNext, true))
+			out.WriteString("\n")
+		}
+		return strings.TrimRight(out.String(), "\n")
 	case *ValDeclExpr:
-		typeStr := ""
+		line, next := node(indent, last, "ValDecl name="+n.Name.Lexeme)
+		var out strings.Builder
+		out.WriteString(line)
 		if n.Type != nil {
-			typeStr = ": " + dump(n.Type, "", true)
+			tLine, tNext := node(next, false, "Type")
+			out.WriteString(tLine)
+			out.WriteString(dump(n.Type, tNext, true))
 		}
-		return fmt.Sprintf("%s%sValDecl(%s%s)\n%s",
-			indent, connector, n.Name.Lexeme, typeStr,
-			dump(n.Value, indent+"   ", true),
-		)
+		vLine, vNext := node(next, true, "Value")
+		out.WriteString("\n")
+		out.WriteString(vLine)
+		out.WriteString(dump(n.Value, vNext, true))
+		return out.String()
 	case *MutDeclExpr:
-		typeStr := ""
+		line, next := node(indent, last, "MutDecl name="+n.Name.Lexeme)
+		var out strings.Builder
+		out.WriteString(line)
 		if n.Type != nil {
-			typeStr = ": " + dump(n.Type, "", true)
+			tLine, tNext := node(next, false, "Type")
+			out.WriteString(tLine)
+			out.WriteString(dump(n.Type, tNext, true))
 		}
-		return fmt.Sprintf("%s%sMutDecl(%s%s)\n%s",
-			indent, connector, n.Name.Lexeme, typeStr,
-			dump(n.Value, indent+"   ", true),
-		)
+		vLine, vNext := node(next, true, "Value")
+		out.WriteString("\n")
+		out.WriteString(vLine)
+		out.WriteString(dump(n.Value, vNext, true))
+		return out.String()
 	case *FuncDeclExpr:
-		out := fmt.Sprintf("%s%sFuncDecl(pub=%t, rec=%t, name=%s)\n",
-			indent, connector, n.Pub, n.Recursion, n.Name.Lexeme)
-		out += fmt.Sprintf("%sParams:\n", nextIndent)
+		line, next := node(indent, last,
+			fmt.Sprintf("FuncDecl name=%s pub=%t rec=%t",
+				n.Name.Lexeme, n.Pub, n.Recursion),
+		)
+		var out strings.Builder
+		out.WriteString(line)
+		pLine, pNext := node(next, false, "Params")
+		out.WriteString(pLine)
 		for i, p := range n.Params {
-			paramStr := p.Name.Lexeme
+			paramLine, pIndent := node(pNext, i == len(n.Params)-1, "Param name="+p.Name.Lexeme)
+			out.WriteString(paramLine)
+
 			if p.Type != nil {
-				paramStr += ": " + dump(p.Type, "", true)
+				out.WriteString(dump(p.Type, pIndent, true))
 			}
-			last := i == len(n.Params)-1
-			conn := "├─ "
-			if last {
-				conn = "└─ "
-			}
-			out += fmt.Sprintf("%s%s%s\n", nextIndent, conn, paramStr)
 		}
 		if n.Ret != nil {
-			out += fmt.Sprintf("%sReturnType:\n%s", nextIndent, dump(n.Ret, nextIndent+"  ", true))
+			rLine, rNext := node(next, false, "ReturnType")
+			out.WriteString("\n")
+			out.WriteString(rLine)
+			out.WriteString(dump(n.Ret, rNext, true))
 		}
-		out += fmt.Sprintf("%sBody:\n%s", nextIndent, dump(n.Body, nextIndent+"  ", true))
-		return out
-	case *BlockExpr:
-		out := fmt.Sprintf("%s%sBlock\n", indent, connector)
-		for i, e := range n.Exprs {
-			out += dump(e, nextIndent, i == len(n.Exprs)-1) + "\n"
+		bLine, bNext := node(next, true, "Body")
+		out.WriteString("\n")
+		out.WriteString(bLine)
+		out.WriteString(dump(n.Body, bNext, true))
+		return out.String()
+	case *TypeDeclExpr:
+		line, next := node(indent, last, "TypeDecl name="+n.Name.Lexeme)
+		var out strings.Builder
+		out.WriteString(line)
+		if n.Body != nil {
+			bLine, bNext := node(next, true, "Body")
+			out.WriteString(bLine)
+			out.WriteString(dump(n.Body, bNext, true))
 		}
-		return strings.TrimRight(out, "\n")
+		return out.String()
+	case *TypeExpr:
+		line, next := node(indent, last, "Type "+n.Name)
+		if n.Generic != nil {
+			gLine, gNext := node(next, true, "Generic")
+			return line + gLine + dump(n.Generic, gNext, true)
+		}
+		return line
+	case *TupleTypeExpr:
+		line, next := node(indent, last, "TupleType")
+		var out strings.Builder
+		out.WriteString(line)
+		for i, t := range n.Types {
+			out.WriteString(dump(t, next, i == len(n.Types)-1))
+		}
+		return out.String()
+	case *RecordTypeExpr:
+		line, next := node(indent, last, "RecordType "+n.Name.Lexeme)
+		var out strings.Builder
+		out.WriteString(line)
+		for i, f := range n.Fields {
+			fieldLine, fNext := node(next, i == len(n.Fields)-1, "Field "+f.Name.Lexeme)
+			out.WriteString(fieldLine)
+			if f.Type != nil {
+				out.WriteString(dump(f.Type, fNext, true))
+			}
+		}
+		return out.String()
 	case *UseExpr:
-		out := fmt.Sprintf("%s%sUse\n", indent, connector)
-		out += fmt.Sprintf("%sPath: %v\n", nextIndent, n.Path)
+		line, next := node(indent, last, "Use")
+		var out strings.Builder
+		out.WriteString(line)
+		pathLine, _ := node(next, true, fmt.Sprintf("Path %v", n.Path))
+		out.WriteString(pathLine)
 		if len(n.Members) > 0 {
-			out += fmt.Sprintf("%sMembers: %v\n", nextIndent, n.Members)
+			mLine, _ := node(next, true, fmt.Sprintf("Members %v", n.Members))
+			out.WriteString(mLine)
 		}
 		if n.Alias != "" {
-			out += fmt.Sprintf("%sAlias: %s\n", nextIndent, n.Alias)
+			aLine, _ := node(next, true, "Alias "+n.Alias)
+			out.WriteString(aLine)
 		}
-		return out
-	case *QualifiedExpr:
-		out := fmt.Sprintf("%s%sQualified\n", indent, connector)
-		out += fmt.Sprintf("%sLeft:\n%s\n", nextIndent, dump(n.Left, nextIndent+"  ", true))
-		out += fmt.Sprintf("%sRight:\n%s", nextIndent, dump(&Identifier{Name: n.Right.Lexeme, Pos: n.Right}, nextIndent+"  ", true))
-		return out
-	case *FieldAccessExpr:
-		out := fmt.Sprintf("%s%sField\n", indent, connector)
-		out += fmt.Sprintf("%sLeft:\n%s\n", nextIndent, dump(n.Left, nextIndent+"  ", true))
-		out += fmt.Sprintf("%sRight:\n%s", nextIndent, dump(&Identifier{Name: n.Right, Pos: n.Pos}, nextIndent+"  ", true))
-		return out
-	case *IfExpr:
-		out := fmt.Sprintf("%s%sIfExpr\n", indent, connector)
-		out += fmt.Sprintf("%sCond:\n%s\n", nextIndent, dump(n.Cond, nextIndent+"  ", true))
-		out += fmt.Sprintf("%sThen:\n%s", nextIndent, dump(n.Then, nextIndent+"  ", true))
-		if n.Else != nil {
-			out += fmt.Sprintf("\n%sElse:\n%s", nextIndent, dump(n.Else, nextIndent+"  ", true))
-		}
-		return out
-	case *MatchExpr:
-		out := fmt.Sprintf("%s%sMatchExpr\n", indent, connector)
-		out += fmt.Sprintf("%sValue:\n%s\n", nextIndent, dump(n.Value, nextIndent+"  ", true))
-		out += fmt.Sprintf("%sArms:\n", nextIndent)
-		for _, arm := range n.Arms {
-			out += fmt.Sprintf("%s- Pattern:\n%s\n", nextIndent+"  ", dump(arm.Pattern, nextIndent+"    ", true))
-			if arm.Guard != nil {
-				out += fmt.Sprintf("%s  Guard:\n%s\n", nextIndent+"  ", dump(arm.Guard, nextIndent+"    ", true))
-			}
-			out += fmt.Sprintf("%s  Body:\n%s\n", nextIndent+"  ", dump(arm.Body, nextIndent+"    ", true))
-		}
-		return out
-	case *PipelineExpr:
-		out := fmt.Sprintf("%s%sPipelineExpr\n", indent, connector)
-		out += fmt.Sprintf("%sLeft:\n%s\n", nextIndent, dump(n.Left, nextIndent+"  ", true))
-		out += fmt.Sprintf("%sRight:\n%s", nextIndent, dump(n.Right, nextIndent+"  ", true))
-		return out
-	case *ListExpr:
-		out := fmt.Sprintf("%s%sList\n", indent, connector)
-		nextIndent := indent
-		for _, elem := range n.Elements {
-			out += fmt.Sprintf("%s%s\n", nextIndent, dump(elem, nextIndent, true))
-		}
-		return out
-	case *TypeExpr:
-		if n.Generic != nil {
-			return fmt.Sprintf("Type(%s(%s))", n.Name, dump(n.Generic, "", true))
-		}
-		return fmt.Sprintf("Type(%s)", n.Name)
-
-	case *TupleTypeExpr:
-		types := []string{}
-		for _, t := range n.Types {
-			types = append(types, dump(t, "", true))
-		}
-		return fmt.Sprintf("TupleType(%s)", strings.Join(types, ", "))
-	case *TupleExpr:
-		out := fmt.Sprintf("%s%sTuple\n", indent, connector)
-		nextIndent := indent + "   "
-		for i, elem := range n.Elements {
-			last := i == len(n.Elements)-1
-			out += dump(elem, nextIndent, last) + "\n"
-		}
-		return strings.TrimRight(out, "\n")
-	case *TypeDeclExpr:
-		out := fmt.Sprintf("%s%sTypeDecl(pub=%t, name=%s)\n", indent, connector, n.Pub, n.Name.Lexeme)
-		if n.Body != nil {
-			out += fmt.Sprintf("%sBody:\n%s", indent+"   ", dump(n.Body, indent+"      ", true))
-		}
-		return out
-	case *RecordTypeExpr:
-		out := fmt.Sprintf("%s%sRecordType(%s)\n", indent, connector, n.Name.Lexeme)
-		for i, f := range n.Fields {
-			last := i == len(n.Fields)-1
-			fieldStr := f.Name.Lexeme
-			if f.Type != nil {
-				fieldStr += ": " + dump(f.Type, "", true)
-			}
-			out += fmt.Sprintf("%s%s%s\n", indent+"   ", "├─ ", fieldStr)
-			if last {
-				out = strings.Replace(out, "├─ "+fieldStr, "└─ "+fieldStr, 1)
-			}
-		}
-		return out
+		return out.String()
 	default:
-		return fmt.Sprintf("%s%s<unknown %T>", indent, connector, n)
+		line, _ := node(indent, last, fmt.Sprintf("<unknown %T>", n))
+		return line
 	}
+}
+
+func nodeWith(indent string, last bool, label string) string {
+	line, _ := node(indent, last, label)
+	return line
 }

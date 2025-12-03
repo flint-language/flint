@@ -24,7 +24,10 @@ jobs:
         with:
           go-version: ${{ matrix.go }}
 
-      - name: Build
+      - name: Test
+        run: go test ./...
+
+      - name: Build (All)
         run: bash scripts/build.sh
 
       - name: Upload build artifacts

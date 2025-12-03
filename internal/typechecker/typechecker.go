@@ -363,7 +363,6 @@ func (tc *TypeChecker) visitMatch(m *parser.MatchExpr) *Type {
 			tc.env.Set(p.Name, valueTy)
 			patternTy := valueTy
 			_ = patternTy
-
 		default:
 			patternTy := tc.Check(arm.Pattern)
 			if !patternTy.Equal(valueTy) {

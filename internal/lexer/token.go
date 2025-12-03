@@ -6,23 +6,19 @@ type TokenKind int
 
 // Token represents a lexical token: kind, literal text, and source position.
 type Token struct {
-	Kind   TokenKind // token category
-	Lexeme string    // exact source text
-	Line   int       // 1-based line number
-	Column int       // 1-based column number
+	Kind   TokenKind
+	Lexeme string
+	Line   int
+	Column int
 
 	File   string
 	Source []rune
 }
 
-// Token kinds for the Flint language.
-// These are grouped for clarity and to ease future extension.
 const (
-	// Special
 	Illegal TokenKind = iota
 	Comment
 
-	// Identifiers and literals
 	Identifier
 	Int
 	Float
@@ -33,15 +29,13 @@ const (
 	List
 	Nil
 
-	// Groupings
-	LeftParen    // (
-	RightParen   // )
-	LeftBrace    // {
-	RightBrace   // }
-	LeftBracket  // [
-	RightBracket // ]
+	LeftParen
+	RightParen
+	LeftBrace
+	RightBrace
+	LeftBracket
+	RightBracket
 
-	// Int Operations
 	Plus
 	Minus
 	Star
@@ -52,38 +46,34 @@ const (
 	GreaterEqual
 	Percent
 
-	// Float Operations
-	PlusDot         // '+.'
-	MinusDot        // '-.'
-	StarDot         // '*.'
-	SlashDot        // '/.'
-	LessDot         // '<.'
-	GreaterDot      // '>.'
-	LessEqualDot    // '<=.'
-	GreaterEqualDot // '>=.'
+	PlusDot
+	MinusDot
+	StarDot
+	SlashDot
+	LessDot
+	GreaterDot
+	LessEqualDot
+	GreaterEqualDot
 
-	// String Operation
-	LtGt // '<>'
+	LtGt
 
-	// Other Punctuation
 	Colon
 	Comma
-	Bang // '!'
+	Bang
 	Equal
-	EqualEqual // '=='
-	NotEqual   // '!='
-	Vbar       // '|'
-	VbarVbar   // '||'
-	AmperAmper // '&&'
-	Pipe       // '|>'
-	Dot        // '.'
-	RArrow     // '->'
-	DotDot     // '..'
-	At         // '@'
-	Underscore // '_'
+	EqualEqual
+	NotEqual
+	Vbar
+	VbarVbar
+	AmperAmper
+	Pipe
+	Dot
+	RArrow
+	DotDot
+	At
+	Underscore
 	EndOfFile
 
-	// Keywords
 	KwAs
 	KwAssert
 	KwBool
@@ -101,6 +91,7 @@ const (
 	KwPanic
 	KwPub
 	KwString
+	KwThen
 	KwType
 	KwUse
 	KwVal
@@ -125,6 +116,7 @@ var KeywordMap = map[string]TokenKind{
 	"panic":  KwPanic,
 	"pub":    KwPub,
 	"String": KwString,
+	"then":   KwThen,
 	"True":   Bool,
 	"type":   KwType,
 	"use":    KwUse,

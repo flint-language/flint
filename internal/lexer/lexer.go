@@ -15,10 +15,10 @@ type Lexer struct {
 }
 
 func Tokenize(source, filename string) ([]Token, error) {
-	lx := new(source, filename)
+	lx := New(source, filename)
 	out := []Token{}
 	for {
-		tok := lx.next()
+		tok := lx.Next()
 		out = append(out, tok)
 		if tok.Kind == EndOfFile {
 			break
@@ -30,12 +30,12 @@ func Tokenize(source, filename string) ([]Token, error) {
 	return out, nil
 }
 
-func new(source, filename string) *Lexer {
+func New(source, filename string) *Lexer {
 	r := []rune(source)
 	return &Lexer{source: r, position: 0, lineNumber: 1, columnNumber: 1, fileName: filename}
 }
 
-func (l *Lexer) next() Token {
+func (l *Lexer) Next() Token {
 	l.consumeWhitespace()
 	startlineNumber, startcolumnNumber := l.lineNumber, l.columnNumber
 	ch := l.peekRuneAt(0)
