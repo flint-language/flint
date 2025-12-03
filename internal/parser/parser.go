@@ -239,7 +239,12 @@ func (p *Parser) parsePrimary() Expr {
 		return &FloatLiteral{Value: f, Raw: tok.Lexeme, Pos: tok}
 	case lexer.String:
 		p.eat()
-		return &StringLiteral{Value: tok.Lexeme, Pos: tok}
+		value, err := strconv.Unquote(tok.Lexeme)
+		if err != nil {
+			p.errorAt(tok, "invalid string literal")
+			return nil
+		}
+		return &StringLiteral{Value: value, Pos: tok}
 	case lexer.Byte:
 		p.eat()
 		if len(tok.Lexeme) != 3 || tok.Lexeme[0] != '\'' || tok.Lexeme[2] != '\'' {
@@ -537,27 +542,51 @@ func (p *Parser) parseUse() Expr {
 }
 
 func (p *Parser) parseIf() Expr {
+	start := p.cur()
 	p.eat()
 	cond := p.parseExpression(0)
 	if cond == nil {
 		p.errorAt(p.cur(), "expected condition after 'if'")
 	}
-	thenBlock := p.parseBlock()
-	if thenBlock == nil {
-		p.errorAt(p.cur(), "expected block after 'if' condition")
-	}
-	var elseBlock Expr
-	if p.cur().Kind == lexer.KwElse {
+	var thenExpr Expr
+	var elseExpr Expr
+	switch p.cur().Kind {
+	case lexer.KwThen:
 		p.eat()
-		elseBlock = p.parseBlock()
-		if elseBlock == nil {
-			p.errorAt(p.cur(), "expected block after 'else'")
+		thenExpr = p.parseExpression(0)
+		if thenExpr == nil {
+			p.errorAt(p.cur(), "expected expression after then")
 		}
+		if p.cur().Kind != lexer.KwElse {
+			p.errorAt(p.cur(), "expected 'else' after then-expression")
+		}
+		p.eat()
+		if p.cur().Kind == lexer.LeftBrace {
+			p.errorAt(p.cur(), "cannot use block-style else with expression-style then")
+		}
+		elseExpr = p.parseExpression(0)
+		if elseExpr == nil {
+			p.errorAt(p.cur(), "expected expression after else")
+		}
+	case lexer.LeftBrace:
+		thenExpr = p.parseBlock()
+		if p.cur().Kind == lexer.KwElse {
+			p.eat()
+			if p.cur().Kind != lexer.LeftBrace {
+				p.errorAt(p.cur(), "block-style if requires block after else")
+			}
+
+			elseExpr = p.parseBlock()
+		}
+	default:
+		p.errorAt(p.cur(), "expected 'then' or '{'")
+		return nil
 	}
 	return &IfExpr{
+		Pos:  start,
 		Cond: cond,
-		Then: thenBlock,
-		Else: elseBlock,
+		Then: thenExpr,
+		Else: elseExpr,
 	}
 }
 

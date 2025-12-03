@@ -10,7 +10,7 @@
 <!-- A spacer -->
 <div>&nbsp;</div>
 
-Flint is a functional language for building type-safe systems at scale! For more information, see [the website](#).
+Flint is a functional language for building type-safe systems at scale! For more information, see [the website](https://flint-lang.vercel.app/).
 
 ## Support Flint!
 

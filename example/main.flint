@@ -1,9 +1,3 @@
-use flint/io
-
-pub type User {
-    id: Int, name: String, active: Bool
-}
-
-pub fn main() User {
-    val person: User = User(1.5, "Bob", True)
+pub fn main() Int {
+    val x: Int = 10
 }

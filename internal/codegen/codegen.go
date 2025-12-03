@@ -78,6 +78,7 @@ func (cg *CodeGen) emitBlock(b *ir.Block, blk *parser.BlockExpr) value.Value {
 
 	return last
 }
+
 func (cg *CodeGen) emitExpr(_ *ir.Block, e parser.Expr) value.Value {
 	switch v := e.(type) {
 	case *parser.IntLiteral:

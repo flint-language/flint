@@ -1,6 +1,7 @@
 package lexer
 
 import (
+	"flint/internal/color"
 	"fmt"
 	"os"
 	"strings"
@@ -9,13 +10,19 @@ import (
 func (l *Lexer) error(msg string) {
 	line := l.getLineText(l.lineNumber)
 	caret := makeCaret(l.columnNumber)
+
 	fmt.Printf(
-		"error: %s\n  --> %s:%d:%d\n   |\n%2d | %s\n   | %s\n",
-		msg,
-		l.fileName, l.lineNumber, l.columnNumber,
-		l.lineNumber, line,
-		caret,
+		"%s: %s\n  %s %s:%d:%d\n   %s\n%2d | %s\n   | %s\n",
+		color.BoldText("error"),
+		color.RedText(msg),
+		color.CyanText("-->"),
+		color.BlueText(l.fileName), l.lineNumber, l.columnNumber,
+		color.YellowText("|"),
+		l.lineNumber,
+		color.BoldText(line),
+		color.GreenText(caret),
 	)
+
 	os.Exit(1)
 }
 
@@ -48,5 +55,5 @@ func makeCaret(col int) string {
 	if col < 1 {
 		col = 1
 	}
-	return fmt.Sprintf("%s^", strings.Repeat(" ", col-1))
+	return fmt.Sprintf("%s^", strings.Repeat(" ", col-2))
 }
