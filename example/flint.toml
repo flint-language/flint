@@ -1,0 +1,13 @@
+[package]
+  name = "example-package"
+  version = "0.1.0"
+  authors = ["author1", "author2"]
+  description = "A example library for Flint programming language."
+  license = "MIT"
+  repository = "https://github.com/example/example-repo"
+
+[build]
+  type = "native"
+  language = "c"
+  entry = "example.c"
+  output = "example"
