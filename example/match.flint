@@ -1,6 +1,16 @@
 @external(c, "flint_stdlib", "print")
 pub fn print(string: String) Nil
 
+fn test(i: Int) String {
+    match i {
+        | 1 -> "Hello"
+        | _ -> match i == 10 {
+            | True -> "true"
+            | False -> "false"
+        }
+    }
+}
+
 pub fn main() Nil {
-    print("Hello\n")
+    print(test(3))
 }

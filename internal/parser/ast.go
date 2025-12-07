@@ -222,6 +222,10 @@ func (m *MatchArm) NodeType() string {
 	return "MatchArm"
 }
 
+func (m *MatchArm) IsWildCardArm() bool {
+	return m.Pattern.NodeType() == "Identifier" && m.Pattern.(*Identifier).Name == "_"
+}
+
 type MatchExpr struct {
 	Value Expr
 	Arms  []*MatchArm

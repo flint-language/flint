@@ -1,14 +1,13 @@
 package codegen
 
 import (
-	"fmt"
-
 	"github.com/llir/llvm/ir"
 	"github.com/llir/llvm/ir/constant"
 	"github.com/llir/llvm/ir/enum"
 	"github.com/llir/llvm/ir/types"
 	"github.com/llir/llvm/ir/value"
 
+	"flint/internal/lexer"
 	"flint/internal/parser"
 )
 
@@ -242,106 +241,6 @@ func (cg *CodeGen) emitMatchBody(b *ir.Block, body parser.Expr, isTail bool) val
 	}
 }
 
-func (cg *CodeGen) emitMatch(b *ir.Block, m *parser.MatchExpr, isTail bool) value.Value {
-	parent := b.Parent
-	matchId := cg.globalMatchCount
-	cg.globalMatchCount++
-
-	scrutinee := cg.emitExpr(b, m.Value, false)
-	var incomings []*ir.Incoming
-	var phiType types.Type
-	current := b
-
-	blockMap := make(map[string]*ir.Block)
-	bodyMap := make(map[string]value.Value, 0)
-
-	for idx, arm := range m.Arms {
-		armName := fmt.Sprintf("match.%d.arm.%d", matchId, idx)
-		nextName := fmt.Sprintf("match.%d.next.%d", matchId, idx)
-
-		armBlock := parent.NewBlock(armName)
-		nextBlock := parent.NewBlock(nextName)
-
-		cond := cg.emitMatchCond(current, scrutinee, arm.Pattern, arm.Guard)
-		current.NewCondBr(cond, armBlock, nextBlock)
-
-		blockMap[armName] = armBlock
-		blockMap[nextName] = nextBlock
-
-		val := cg.emitMatchBody(armBlock, arm.Body, isTail)
-		bodyMap[armName] = val
-
-		pred := armBlock
-		if val != nil {
-			if pb := parentBlockOfValue(val); pb != nil {
-				pred = pb
-			}
-		}
-
-		if val != nil {
-			if phiType == nil {
-				phiType = val.Type()
-			} else if !val.Type().Equal(phiType) {
-				panic(fmt.Sprintf("match arm type mismatch: %v vs %v (arm %d)", val.Type(), phiType, idx))
-			}
-			incomings = append(incomings, &ir.Incoming{
-				X:    val,
-				Pred: pred,
-			})
-		} else if phiType != nil {
-			incomings = append(incomings, &ir.Incoming{
-				X:    constant.NewUndef(phiType),
-				Pred: pred,
-			})
-			blocks := make([]*ir.Block, 0)
-			for _, v := range parent.Blocks {
-				if v.Name() != armName {
-					blocks = append(blocks, v)
-				}
-			}
-		}
-		current = nextBlock
-	}
-
-	mergeBlock := parent.NewBlock(fmt.Sprintf("match.%d.merge", matchId))
-
-	for idx := range m.Arms {
-		armName := fmt.Sprintf("match.%d.arm.%d", matchId, idx)
-		armBlock := blockMap[armName]
-		val := bodyMap[armName]
-
-		pred := armBlock
-		if val != nil {
-			if pb := parentBlockOfValue(val); pb != nil {
-				pred = pb
-			}
-		}
-
-		if pred.Term == nil {
-			pred.NewBr(mergeBlock)
-		}
-	}
-
-	if current.Term == nil {
-		current.NewBr(mergeBlock)
-		if phiType != nil {
-			incomings = append(incomings, &ir.Incoming{
-				X:    constant.NewUndef(phiType),
-				Pred: current,
-			})
-		}
-	}
-	if phiType == nil {
-		mergeBlock.NewRet(nil)
-		return nil
-	}
-	phi := mergeBlock.NewPhi(incomings...)
-	if isTail {
-		mergeBlock.NewRet(phi)
-	}
-	return phi
-}
-
 func (cg *CodeGen) emitMatchCond(b *ir.Block, scr value.Value, pat parser.Expr, guard parser.Expr) value.Value {
 	var baseCond value.Value
 	switch p := pat.(type) {
@@ -364,26 +263,30 @@ func (cg *CodeGen) emitMatchCond(b *ir.Block, scr value.Value, pat parser.Expr, 
 		lit := constant.NewInt(types.I1, intVal)
 		baseCond = b.NewICmp(enum.IPredEQ, scr, lit)
 	case *parser.Identifier:
-		if p.Name == "_" {
+		if p.Pos.Kind == lexer.Underscore {
 			baseCond = constant.True
 		} else {
-			cg.locals[p.Name] = scr
+			// alloc := b.NewAlloca(scr.Type())
+			// b.NewStore(scr, alloc)
+			// cg.locals[p.Name] = alloc
 			baseCond = constant.True
 		}
 	default:
 		panic("unsupported match pattern: " + pat.NodeType())
 	}
-	if guard != nil {
-		guardVal := cg.emitExpr(b, guard, false)
-		if _, ok := guardVal.Type().(*types.IntType); ok {
-			if guardVal.Type() != types.I1 {
-				guardVal = b.NewTrunc(guardVal, types.I1)
-			}
-		} else {
-			panic("guard expression is not a boolean")
-		}
-		baseCond = b.NewAnd(baseCond, guardVal)
-	}
+	// disable guards for now
+
+	// if guard != nil {
+	// 	guardVal := cg.emitExpr(b, guard, false)
+	// 	if _, ok := guardVal.Type().(*types.IntType); ok {
+	// 		if guardVal.Type() != types.I1 {
+	// 			guardVal = b.NewTrunc(guardVal, types.I1)
+	// 		}
+	// 	} else {
+	// 		panic("guard expression is not a boolean")
+	// 	}
+	// 	baseCond = b.NewAnd(baseCond, guardVal)
+	// }
 	return baseCond
 }
 

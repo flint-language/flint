@@ -39,8 +39,8 @@ func loadAndParse(filename string) (*parser.Program, *typechecker.TypeChecker) {
 		}
 	}
 
-	// for _, ex := range prog.Exprs {
-	// 	fmt.Println(parser.DumpExpr(ex))
-	// }
+	for _, ex := range prog.Exprs {
+		fmt.Println(parser.DumpExpr(ex))
+	}
 	return prog, tc
 }
