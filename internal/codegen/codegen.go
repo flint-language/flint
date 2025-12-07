@@ -72,18 +72,49 @@ func (cg *CodeGen) emitFunction(fn *parser.FuncDeclExpr) {
 	}
 	if fn.Body == nil {
 		cg.emitDefaultReturn(entry, mainFn.Sig.RetType, name == "main")
+		if name == "main" {
+			exit := mainFn.NewBlock("main.exit")
+			for _, bb := range mainFn.Blocks {
+				if bb.Term == nil {
+					bb.NewBr(exit)
+				}
+			}
+			exit.NewRet(constant.NewInt(types.I32, 0))
+		}
 		return
 	}
 	block := fn.Body.(*parser.BlockExpr)
 	lastVal := cg.emitBlock(entry, block, true)
+	retTy := mainFn.Sig.RetType
+	if name == "main" {
+		if entry.Term == nil {
+			entry.NewRet(constant.NewInt(types.I32, 0))
+		}
+		return
+	}
+	if _, isVoid := retTy.(*types.VoidType); isVoid {
+		if entry.Term == nil {
+			entry.NewRet(nil)
+		}
+		return
+	}
 	if lastVal != nil {
 		if b := parentBlockOfValue(lastVal); b != nil && b.Term == nil {
 			b.NewRet(lastVal)
 		} else if entry.Term == nil {
 			entry.NewRet(lastVal)
 		}
-	} else if entry.Term == nil {
-		cg.emitDefaultReturn(entry, mainFn.Sig.RetType, name == "main")
+	} else {
+		cg.emitDefaultReturn(entry, retTy, false)
+	}
+	if name == "main" {
+		exit := mainFn.NewBlock("main.exit")
+		for _, bb := range mainFn.Blocks {
+			if bb.Term == nil {
+				bb.NewBr(exit)
+			}
+		}
+		exit.NewRet(constant.NewInt(types.I32, 0))
 	}
 }
 
@@ -359,11 +390,6 @@ func (cg *CodeGen) emitMatchCond(b *ir.Block, scr value.Value, pat parser.Expr, 
 func (cg *CodeGen) emitTopLiteral(e parser.Expr) {
 	fn := cg.mod.NewFunc("main", types.I32)
 	b := fn.NewBlock("entry")
-	val := cg.emitExpr(b, e, true)
-	if _, ok := val.Type().(*types.IntType); ok {
-		if val.Type() != types.I32 {
-			val = b.NewTrunc(val, types.I32)
-		}
-	}
-	b.NewRet(val)
+	_ = cg.emitExpr(b, e, true)
+	b.NewRet(constant.NewInt(types.I32, 0))
 }
