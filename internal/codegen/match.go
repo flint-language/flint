@@ -16,6 +16,8 @@ func (cg *CodeGen) emitMatch(b *ir.Block, m *parser.MatchExpr, isTail bool) valu
 	matchId := cg.globalMatchCount
 	cg.globalMatchCount++
 
+	armNames := make([]string, 0)
+
 	armMap := make(map[string]*parser.MatchArm)
 	armBlockMap := make(map[string]*ir.Block)
 	armCheckMap := make(map[string]*ir.Block)
@@ -34,6 +36,7 @@ func (cg *CodeGen) emitMatch(b *ir.Block, m *parser.MatchExpr, isTail bool) valu
 		} else {
 			name = fmt.Sprintf("match.%d.arm.%d", matchId, caseId)
 		}
+		armNames = append(armNames, name)
 
 		armBlock := parent.NewBlock(name)
 		if caseId != 0 && !arm.IsWildCardArm() {
@@ -60,7 +63,7 @@ func (cg *CodeGen) emitMatch(b *ir.Block, m *parser.MatchExpr, isTail bool) valu
 
 	current := b
 	armId := 0
-	for name, arm := range armMap {
+	for _, name := range armNames {
 		armBlock := armBlockMap[name]
 		armBody := armBodyMap[name]
 
@@ -76,8 +79,10 @@ func (cg *CodeGen) emitMatch(b *ir.Block, m *parser.MatchExpr, isTail bool) valu
 			current = checkList[armId]
 
 			if current != nil {
+				arm := armMap[name]
 				cond := cg.emitMatchCond(current, scrutinee, arm.Pattern, arm.Guard)
 				current.NewCondBr(cond, armBlock, nextList[armId])
+				fmt.Println(current, current.Term)
 			}
 		}
 
