@@ -1,6 +1,0 @@
-@external(c, "ffi_go", "printString")
-pub fn printString(string: String) Nil
-
-pub fn main() Nil {
-    printString("Hello World!\n")
-}

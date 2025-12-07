@@ -1,2 +1,0 @@
-@external(c, "ffi", "print")
-pub fn print(string: Int) Nil

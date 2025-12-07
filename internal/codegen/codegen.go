@@ -263,7 +263,7 @@ func (cg *CodeGen) emitMatch(b *ir.Block, m *parser.MatchExpr, isTail bool) valu
 				Pred: pred,
 			})
 			blocks := make([]*ir.Block, 0)
-			for _, v := range parent.Blocks { // prune nil matches
+			for _, v := range parent.Blocks {
 				if v.Name() != armName {
 					blocks = append(blocks, v)
 				}
@@ -274,7 +274,7 @@ func (cg *CodeGen) emitMatch(b *ir.Block, m *parser.MatchExpr, isTail bool) valu
 
 	mergeBlock := parent.NewBlock(fmt.Sprintf("match.%d.merge", matchId))
 
-	for idx, _ := range m.Arms {
+	for idx := range m.Arms {
 		armName := fmt.Sprintf("match.%d.arm.%d", matchId, idx)
 		armBlock := blockMap[armName]
 		val := bodyMap[armName]
