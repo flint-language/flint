@@ -13,5 +13,6 @@ fn test(i: Int) String {
 }
 
 pub fn main() Nil {
-    print(test(3) <> "\n")
+    print(test(3))
+    print("\n")
 }
