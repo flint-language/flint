@@ -1,11 +1,13 @@
 package codegen
 
 import (
+	"flint/internal/lexer"
 	"flint/internal/parser"
 	"fmt"
 
 	"github.com/llir/llvm/ir"
 	"github.com/llir/llvm/ir/constant"
+	"github.com/llir/llvm/ir/enum"
 	"github.com/llir/llvm/ir/types"
 	"github.com/llir/llvm/ir/value"
 )
@@ -96,4 +98,62 @@ func (cg *CodeGen) emitMatch(b *ir.Block, m *parser.MatchExpr, isTail bool) valu
 		mergeBlock.NewRet(phi)
 	}
 	return phi
+}
+
+func (cg *CodeGen) emitMatchBody(b *ir.Block, body parser.Expr, isTail bool) value.Value {
+	switch x := body.(type) {
+	case *parser.BlockExpr:
+		return cg.emitBlock(b, x, isTail)
+	case *parser.MatchExpr:
+		return cg.emitMatch(b, x, isTail)
+	default:
+		return cg.emitExpr(b, body, isTail)
+	}
+}
+
+func (cg *CodeGen) emitMatchCond(b *ir.Block, scr value.Value, pat parser.Expr, guard parser.Expr) value.Value {
+	var baseCond value.Value
+	switch p := pat.(type) {
+	case *parser.IntLiteral:
+		if _, ok := scr.Type().(*types.IntType); !ok {
+			panic("match scrutinee is not an integer for integer pattern")
+		}
+		lit := constant.NewInt(types.I64, p.Value)
+		baseCond = b.NewICmp(enum.IPredEQ, scr, lit)
+	case *parser.BoolLiteral:
+		if _, ok := scr.Type().(*types.IntType); !ok {
+			panic("match scrutinee is not an integer for bool pattern")
+		}
+		var intVal int64
+		if p.Value {
+			intVal = 1
+		} else {
+			intVal = 0
+		}
+		lit := constant.NewInt(types.I1, intVal)
+		baseCond = b.NewICmp(enum.IPredEQ, scr, lit)
+	case *parser.Identifier:
+		if p.Pos.Kind == lexer.Underscore {
+			baseCond = constant.True
+		} else {
+			alloc := b.NewAlloca(scr.Type())
+			b.NewStore(scr, alloc)
+			cg.locals[p.Name] = alloc
+			baseCond = constant.True
+		}
+	default:
+		panic("unsupported match pattern: " + pat.NodeType())
+	}
+	if guard != nil {
+		guardVal := cg.emitExpr(b, guard, false)
+		if _, ok := guardVal.Type().(*types.IntType); ok {
+			if guardVal.Type() != types.I1 {
+				guardVal = b.NewTrunc(guardVal, types.I1)
+			}
+		} else {
+			panic("guard expression is not a boolean")
+		}
+		baseCond = b.NewAnd(baseCond, guardVal)
+	}
+	return baseCond
 }
