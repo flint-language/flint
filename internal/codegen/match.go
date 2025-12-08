@@ -12,23 +12,17 @@ import (
 
 func (cg *CodeGen) emitMatch(b *ir.Block, m *parser.MatchExpr, isTail bool) value.Value {
 	parent := b.Parent
-
 	matchId := cg.globalMatchCount
 	cg.globalMatchCount++
-
 	armNames := make([]string, 0)
-
 	armMap := make(map[string]*parser.MatchArm)
 	armBlockMap := make(map[string]*ir.Block)
 	armCheckMap := make(map[string]*ir.Block)
 	armBodyMap := make(map[string]value.Value)
 	checkList := make([]*ir.Block, 0)
 	nextList := make([]*ir.Block, 0)
-
 	checkList = append(checkList, b)
-
 	wildCardName := fmt.Sprintf("match.%d.wild", matchId)
-
 	for caseId, arm := range m.Arms {
 		var name string
 		if arm.IsWildCardArm() {
@@ -37,7 +31,6 @@ func (cg *CodeGen) emitMatch(b *ir.Block, m *parser.MatchExpr, isTail bool) valu
 			name = fmt.Sprintf("match.%d.arm.%d", matchId, caseId)
 		}
 		armNames = append(armNames, name)
-
 		armBlock := parent.NewBlock(name)
 		if caseId != 0 && !arm.IsWildCardArm() {
 			checkName := fmt.Sprintf("match.%d.check.%d", matchId, caseId)
@@ -48,25 +41,20 @@ func (cg *CodeGen) emitMatch(b *ir.Block, m *parser.MatchExpr, isTail bool) valu
 			checkList = append(checkList, nil)
 			nextList = append(nextList, armBlock)
 		}
-
 		armMap[name] = arm
 		armBlockMap[name] = armBlock
 		armBodyMap[name] = cg.emitMatchBody(armBlock, arm.Body, isTail)
 	}
-
 	scrutinee := cg.emitExpr(b, m.Value, false)
 	var incomings []*ir.Incoming
 	var phiType types.Type
 	mergeBlock := parent.NewBlock(fmt.Sprintf("match.%d", matchId))
-
 	nextList = append(nextList, mergeBlock)
-
 	current := b
 	armId := 0
 	for _, name := range armNames {
 		armBlock := armBlockMap[name]
 		armBody := armBodyMap[name]
-
 		if armBody != nil {
 			if phiType == nil {
 				phiType = armBody.Type()
@@ -74,21 +62,16 @@ func (cg *CodeGen) emitMatch(b *ir.Block, m *parser.MatchExpr, isTail bool) valu
 				panic(fmt.Sprintf("match arm type mismatch: %v vs %v (arm %d)", armBody.Type(), phiType, armId))
 			}
 		}
-
 		if !armMap[name].IsWildCardArm() {
 			current = checkList[armId]
-
 			if current != nil {
 				arm := armMap[name]
 				cond := cg.emitMatchCond(current, scrutinee, arm.Pattern, arm.Guard)
 				current.NewCondBr(cond, armBlock, nextList[armId])
-				fmt.Println(current, current.Term)
 			}
 		}
-
 		if armBlock.Term == nil {
 			armBlock.NewBr(mergeBlock)
-
 			if armBody != nil {
 				if phiType == nil {
 					phiType = armBody.Type()
@@ -106,21 +89,18 @@ func (cg *CodeGen) emitMatch(b *ir.Block, m *parser.MatchExpr, isTail bool) valu
 				})
 			}
 		}
-
 		armId++
 	}
 	if phiType == nil {
 		mergeBlock.NewRet(nil)
 		return nil
 	}
-
 	if referencesBlock(b, mergeBlock) {
 		incomings = append(incomings, ir.NewIncoming(
 			constant.NewUndef(phiType),
 			b,
 		))
 	}
-
 	for _, v := range checkList {
 		if referencesBlock(v, mergeBlock) {
 			incomings = append(incomings, ir.NewIncoming(
@@ -129,11 +109,12 @@ func (cg *CodeGen) emitMatch(b *ir.Block, m *parser.MatchExpr, isTail bool) valu
 			))
 		}
 	}
-
+	if phiType.Equal(types.Void) {
+		return mergeBlock
+	}
 	phi := mergeBlock.NewPhi(incomings...)
 	if isTail {
 		mergeBlock.NewRet(phi)
 	}
 	return phi
-
 }

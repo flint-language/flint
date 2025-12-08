@@ -35,7 +35,7 @@ func (tc *TypeChecker) CheckExpr(expr parser.Expr) (*Type, error) {
 func (tc *TypeChecker) Check(expr parser.Expr) *Type {
 	if tc.ctx == TopLevel {
 		switch expr.(type) {
-		case *parser.ValDeclExpr, *parser.MutDeclExpr, *parser.IfExpr,
+		case *parser.VarDeclExpr, *parser.IfExpr,
 			*parser.MatchExpr, *parser.PipelineExpr:
 			tc.error(lexer.Token{}, fmt.Sprintf("%T is not allowed at top-level; must be inside a function/block", expr))
 			return &Type{TKind: TyError}
@@ -58,10 +58,8 @@ func (tc *TypeChecker) Check(expr parser.Expr) *Type {
 		return tc.visitInfix(e)
 	case *parser.Identifier:
 		return tc.visitIdentifier(e)
-	case *parser.ValDeclExpr:
-		return tc.visitValDecl(e)
-	case *parser.MutDeclExpr:
-		return tc.visitMutDecl(e)
+	case *parser.VarDeclExpr:
+		return tc.visitVarDecl(e)
 	case *parser.FuncDeclExpr:
 		oldCtx := tc.ctx
 		tc.ctx = FunctionBody
@@ -88,6 +86,8 @@ func (tc *TypeChecker) Check(expr parser.Expr) *Type {
 		return tc.visitPipeline(e)
 	case *parser.ListExpr:
 		return tc.visitList(e, nil)
+	case *parser.AssignExpr:
+		return tc.visitAssign(e)
 	default:
 		return &Type{TKind: TyError}
 	}
@@ -102,64 +102,45 @@ func (tc *TypeChecker) visitIdentifier(id *parser.Identifier) *Type {
 	return ty
 }
 
-func (tc *TypeChecker) visitValDecl(d *parser.ValDeclExpr) *Type {
-	var valTy *Type
+func (tc *TypeChecker) visitVarDecl(d *parser.VarDeclExpr) *Type {
+	var varTy *Type
 	if d.Value != nil {
 		switch expr := d.Value.(type) {
 		case *parser.ListExpr:
-			valTy = tc.visitList(expr, nil)
+			varTy = tc.visitList(expr, nil)
 		default:
-			valTy = tc.Check(expr)
+			varTy = tc.Check(expr)
 		}
-		if valTy == nil || valTy.TKind == TyError {
-			tc.error(d.Name, fmt.Sprintf("cannot infer type for val '%s'", d.Name.Lexeme))
+		if varTy == nil || varTy.TKind == TyError {
+			tc.error(d.Name, fmt.Sprintf("cannot infer type for %s '%s'",
+				func() string {
+					if d.Mutable {
+						return "mut"
+					}
+					return "val"
+				}(), d.Name.Lexeme))
 			return &Type{TKind: TyError}
 		}
 	}
 	if d.Type != nil {
 		declTy := tc.resolveType(d.Type)
-		if valTy != nil && !declTy.Equal(valTy) {
+		if varTy != nil && !declTy.Equal(varTy) {
 			tc.error(d.Name, fmt.Sprintf(
-				"type mismatch in val '%s': expected %s, got %s",
-				d.Name.Lexeme, declTy.String(), valTy.String()))
+				"type mismatch in %s '%s': expected %s, got %s",
+				func() string {
+					if d.Mutable {
+						return "mut"
+					}
+					return "val"
+				}(), d.Name.Lexeme, declTy.String(), varTy.String()))
 			tc.env.Set(d.Name.Lexeme, declTy)
 			return &Type{TKind: TyError}
 		}
-		tc.env.Set(d.Name.Lexeme, declTy)
+		tc.env.SetVar(d.Name.Lexeme, declTy, d.Mutable)
 		return declTy
 	}
-	tc.env.Set(d.Name.Lexeme, valTy)
-	return valTy
-}
-
-func (tc *TypeChecker) visitMutDecl(d *parser.MutDeclExpr) *Type {
-	var mutTy *Type
-	if d.Value != nil {
-		switch expr := d.Value.(type) {
-		case *parser.ListExpr:
-			mutTy = tc.visitList(expr, nil)
-		default:
-			mutTy = tc.Check(expr)
-		}
-		if mutTy == nil || mutTy.TKind == TyError {
-			tc.error(d.Name, fmt.Sprintf("cannot infer type for mut '%s'", d.Name.Lexeme))
-			return &Type{TKind: TyError}
-		}
-	}
-	if d.Type != nil {
-		declTy := tc.resolveType(d.Type)
-		if mutTy != nil && !declTy.Equal(mutTy) {
-			tc.error(d.Name, fmt.Sprintf(
-				"type mismatch in mut '%s': expected %s, got %s",
-				d.Name.Lexeme, declTy.String(), mutTy.String()))
-			tc.env.Set(d.Name.Lexeme, declTy)
-			return &Type{TKind: TyError}
-		}
-		tc.env.Set(d.Name.Lexeme, declTy)
-		return declTy
-	}
-	tc.env.Set(d.Name.Lexeme, mutTy)
-	return mutTy
+	tc.env.SetVar(d.Name.Lexeme, varTy, d.Mutable)
+	return varTy
 }
 
 func (tc *TypeChecker) visitFuncDecl(fn *parser.FuncDeclExpr) *Type {
@@ -506,6 +487,27 @@ func (tc *TypeChecker) visitList(l *parser.ListExpr, annotated *Type) *Type {
 		}
 	}
 	return &Type{TKind: TyList, Elem: expected}
+}
+
+func (tc *TypeChecker) visitAssign(a *parser.AssignExpr) *Type {
+	varInfo, ok := tc.env.GetVar(a.Name.Name)
+	if !ok {
+		tc.error(a.Pos, fmt.Sprintf("undefined variable '%s'", a.Name.Name))
+		return &Type{TKind: TyError}
+	}
+	if !varInfo.Mutable {
+		tc.error(a.Pos, fmt.Sprintf("cannot assign to immutable variable '%s'", a.Name.Name))
+		return &Type{TKind: TyError}
+	}
+	valueTy := tc.Check(a.Value)
+	if !varInfo.Ty.Equal(valueTy) {
+		tc.error(a.Pos, fmt.Sprintf(
+			"type mismatch in assignment to '%s': expected %s, got %s",
+			a.Name.Name, varInfo.Ty.String(), valueTy.String()))
+		return &Type{TKind: TyError}
+	}
+	tc.env.SetVar(a.Name.Name, valueTy, true)
+	return valueTy
 }
 
 // TODO: Add records

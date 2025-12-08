@@ -1,8 +1,14 @@
-fn test(i: Int) Nil {
-    print(i)
-    if i < 10 then test(i + 1) else print(1)
-}
+@external(c, "flint_stdlib", "assert")
+pub fn assert(cond: Bool) Nil
+
+@external(c, "flint_stdlib", "print")
+pub fn print(string: String) Nil
+
+fn test(x: Int) Int { x }
 
 pub fn main() Nil {
-    test(1)
+    match test(1) {
+        | 1 -> print("One")
+        | 2 -> print("Two")
+    }
 }

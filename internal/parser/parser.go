@@ -109,9 +109,7 @@ func containsSelfCall(e Expr, fnName string) bool {
 		return containsSelfCall(n.Left, fnName)
 	case *QualifiedExpr:
 		return containsSelfCall(n.Left, fnName)
-	case *ValDeclExpr:
-		return containsSelfCall(n.Value, fnName)
-	case *MutDeclExpr:
+	case *VarDeclExpr:
 		return containsSelfCall(n.Value, fnName)
 	}
 	return false
@@ -127,6 +125,18 @@ func (p *Parser) parseExpression(minPrec int) Expr {
 	left := p.parsePrimary()
 	if left == nil {
 		return nil
+	}
+	if id, ok := left.(*Identifier); ok && p.cur().Kind == lexer.Equal {
+		assignTok := p.eat()
+		right := p.parseExpression(0)
+		if right == nil {
+			p.errorAt(assignTok, fmt.Sprintf("missing right-hand side for assignment to %s", id.Name))
+		}
+		return &AssignExpr{
+			Name:  id,
+			Value: right,
+			Pos:   assignTok,
+		}
 	}
 	for {
 		opTok := p.cur()
@@ -356,7 +366,7 @@ func (p *Parser) parseCall(callee Expr) Expr {
 	return &CallExpr{Callee: callee, Args: args, Pos: lparen}
 }
 
-func (p *Parser) parseValDecl() Expr {
+func (p *Parser) parseVarDecl(mutable bool) Expr {
 	p.eat()
 	nameTok, ok := p.expect(lexer.Identifier)
 	if !ok {
@@ -374,40 +384,26 @@ func (p *Parser) parseValDecl() Expr {
 	}
 	value := p.parseExpression(0)
 	if value == nil {
-		p.errorAt(nameTok, fmt.Sprintf("missing initializer for val %s", nameTok.Lexeme))
+		kind := "val"
+		if mutable {
+			kind = "mut"
+		}
+		p.errorAt(nameTok, fmt.Sprintf("missing initializer for %s %s", kind, nameTok.Lexeme))
 	}
-	return &ValDeclExpr{
-		Name:  nameTok,
-		Type:  typeAnn,
-		Value: value,
+	return &VarDeclExpr{
+		Mutable: mutable,
+		Name:    nameTok,
+		Type:    typeAnn,
+		Value:   value,
 	}
 }
 
+func (p *Parser) parseValDecl() Expr {
+	return p.parseVarDecl(false)
+}
+
 func (p *Parser) parseMutDecl() Expr {
-	p.eat()
-	nameTok, ok := p.expect(lexer.Identifier)
-	if !ok {
-		return nil
-	}
-	var typeAnn Expr
-	if p.cur().Kind == lexer.Colon {
-		p.eat()
-		typeAnn = p.parseType()
-	}
-	_, ok = p.expect(lexer.Equal)
-	if !ok {
-		p.synchronize()
-		return nil
-	}
-	value := p.parseExpression(0)
-	if value == nil {
-		p.errorAt(nameTok, fmt.Sprintf("missing initializer for mut %s", nameTok.Lexeme))
-	}
-	return &MutDeclExpr{
-		Name:  nameTok,
-		Type:  typeAnn,
-		Value: value,
-	}
+	return p.parseVarDecl(true)
 }
 
 func (p *Parser) parseFunc(pub bool) Expr {

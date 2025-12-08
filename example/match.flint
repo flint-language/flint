@@ -1,18 +1,5 @@
-@external(c, "flint_stdlib", "print")
-pub fn print(string: String) Nil
-
-fn test(i: Int) String {
-    match i {
-        | 1 -> "Hello"
-        | x if x == 2 -> "Bye"
-        | _ -> match i == 10 {
-            | True -> "true"
-            | False -> "false"
-        }
-    }
-}
-
-pub fn main() Nil {
-    print(test(3))
-    print("\n")
+pub fn main() Int {
+    mut x: Int = 10
+    x = 1
+    x
 }

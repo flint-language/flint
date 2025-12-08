@@ -150,22 +150,8 @@ func dump(e Expr, indent string, last bool) string {
 			out.WriteString("\n")
 		}
 		return strings.TrimRight(out.String(), "\n")
-	case *ValDeclExpr:
-		line, next := node(indent, last, "ValDecl name="+n.Name.Lexeme)
-		var out strings.Builder
-		out.WriteString(line)
-		if n.Type != nil {
-			tLine, tNext := node(next, false, "Type")
-			out.WriteString(tLine)
-			out.WriteString(dump(n.Type, tNext, true))
-		}
-		vLine, vNext := node(next, true, "Value")
-		out.WriteString("\n")
-		out.WriteString(vLine)
-		out.WriteString(dump(n.Value, vNext, true))
-		return out.String()
-	case *MutDeclExpr:
-		line, next := node(indent, last, "MutDecl name="+n.Name.Lexeme)
+	case *VarDeclExpr:
+		line, next := node(indent, last, fmt.Sprintf("VarDecl name=%s mutable=%t", n.Name.Lexeme, n.Mutable))
 		var out strings.Builder
 		out.WriteString(line)
 		if n.Type != nil {
@@ -277,6 +263,18 @@ func dump(e Expr, indent string, last bool) string {
 				out.WriteString(dump(arg, argsNext, i == len(n.Args)-1))
 			}
 		}
+		return out.String()
+	case *AssignExpr:
+		line, next := node(indent, last, "Assign")
+		var out strings.Builder
+		out.WriteString(line)
+		lhsLine, lhsNext := node(next, false, "LHS")
+		out.WriteString(lhsLine)
+		out.WriteString(dump(n.Name, lhsNext, true))
+		rhsLine, rhsNext := node(next, true, "RHS")
+		out.WriteString("\n")
+		out.WriteString(rhsLine)
+		out.WriteString(dump(n.Value, rhsNext, true))
 		return out.String()
 	default:
 		line, _ := node(indent, last, fmt.Sprintf("<unknown %T>", n))

@@ -14,6 +14,7 @@ import (
 type CodeGen struct {
 	mod              *ir.Module
 	strIndex         int
+	strGlobals       map[string]*ir.Global
 	globalMatchCount int
 
 	locals map[string]value.Value
@@ -22,9 +23,10 @@ type CodeGen struct {
 
 func GenerateLLVM(prog *parser.Program) string {
 	cg := &CodeGen{
-		mod:    ir.NewModule(),
-		locals: map[string]value.Value{},
-		funcs:  map[string]*ir.Func{},
+		mod:        ir.NewModule(),
+		locals:     map[string]value.Value{},
+		funcs:      map[string]*ir.Func{},
+		strGlobals: map[string]*ir.Global{},
 	}
 	for _, e := range prog.Exprs {
 		if fn, ok := e.(*parser.FuncDeclExpr); ok {
@@ -57,8 +59,7 @@ func GenerateLLVM(prog *parser.Program) string {
 func (cg *CodeGen) emitFunction(fn *parser.FuncDeclExpr) {
 	name := fn.Name.Lexeme
 	mainFn := cg.funcs[name]
-	decorators := fn.Decorators
-	if len(decorators) != 0 && decorators[0].Name == "external" {
+	if len(fn.Decorators) != 0 && fn.Decorators[0].Name == "external" {
 		cg.emitExternalFunction(fn, 0, name, mainFn)
 		return
 	}
@@ -70,51 +71,35 @@ func (cg *CodeGen) emitFunction(fn *parser.FuncDeclExpr) {
 		cg.locals[param.Name()] = alloc
 	}
 	if fn.Body == nil {
-		cg.emitDefaultReturn(entry, mainFn.Sig.RetType, name == "main")
 		if name == "main" {
-			exit := mainFn.NewBlock("main.exit")
-			for _, bb := range mainFn.Blocks {
-				if bb.Term == nil {
-					bb.NewBr(exit)
-				}
-			}
-			exit.NewRet(constant.NewInt(types.I32, 0))
+			entry.NewRet(constant.NewInt(types.I32, 0))
+		} else {
+			cg.emitDefaultReturn(entry, mainFn.Sig.RetType, false)
 		}
 		return
 	}
 	block := fn.Body.(*parser.BlockExpr)
 	lastVal := cg.emitBlock(entry, block, true)
 	retTy := mainFn.Sig.RetType
-	if name == "main" {
-		if entry.Term == nil {
-			entry.NewRet(constant.NewInt(types.I32, 0))
-		}
-		return
-	}
-	if _, isVoid := retTy.(*types.VoidType); isVoid {
-		if entry.Term == nil {
-			entry.NewRet(nil)
-		}
-		return
-	}
-	if lastVal != nil {
-		if b := parentBlockOfValue(lastVal); b != nil && b.Term == nil {
-			b.NewRet(lastVal)
-		} else if entry.Term == nil {
-			entry.NewRet(lastVal)
-		}
-	} else {
-		cg.emitDefaultReturn(entry, retTy, false)
-	}
-	if name == "main" {
-		exit := mainFn.NewBlock("main.exit")
-		for _, bb := range mainFn.Blocks {
-			if bb.Term == nil {
-				bb.NewBr(exit)
+	if name != "main" {
+		if lastVal != nil {
+			if b := parentBlockOfValue(lastVal); b != nil && b.Term == nil {
+				b.NewRet(lastVal)
+			} else if entry.Term == nil {
+				entry.NewRet(lastVal)
 			}
+		} else if entry.Term == nil {
+			cg.emitDefaultReturn(entry, retTy, false)
 		}
-		exit.NewRet(constant.NewInt(types.I32, 0))
+		return
 	}
+	exit := mainFn.NewBlock("main.exit")
+	for _, bb := range mainFn.Blocks {
+		if bb.Term == nil && bb != exit {
+			bb.NewBr(exit)
+		}
+	}
+	exit.NewRet(constant.NewInt(types.I32, 0))
 }
 
 func (cg *CodeGen) emitBlock(b *ir.Block, blk *parser.BlockExpr, isTail bool) value.Value {
@@ -127,39 +112,34 @@ func (cg *CodeGen) emitBlock(b *ir.Block, blk *parser.BlockExpr, isTail bool) va
 	return last
 }
 
-func (cg *CodeGen) emitIf(b *ir.Block, i *parser.IfExpr, isTail bool) value.Value {
+func (cg *CodeGen) emitIf(b *ir.Block, i *parser.IfExpr) value.Value {
 	cond := cg.emitExpr(b, i.Cond, false)
 	parent := b.Parent
 	thenBlock := parent.NewBlock("if.then")
 	elseBlock := parent.NewBlock("if.else")
 	mergeBlock := parent.NewBlock("if.merge")
 	b.NewCondBr(cond, thenBlock, elseBlock)
-	thenVal := cg.emitIfBody(thenBlock, i.Then, isTail)
-	if thenVal == nil {
-		panic("if expression requires an then branch")
-	}
+	thenVal := cg.emitIfBody(thenBlock, i.Then, false)
 	if thenBlock.Term == nil {
 		thenBlock.NewBr(mergeBlock)
 	}
-
-	elseVal := cg.emitIfBody(elseBlock, i.Else, isTail)
-	if elseVal == nil {
-		panic("if expression requires an else branch")
-	}
+	elseVal := cg.emitIfBody(elseBlock, i.Else, false)
 	if elseBlock.Term == nil {
 		elseBlock.NewBr(mergeBlock)
 	}
-	thenVoid := thenVal.Type().Equal(types.Void)
-	elseVoid := elseVal.Type().Equal(types.Void)
+	thenVoid := thenVal == nil || thenVal.Type().Equal(types.Void)
+	elseVoid := elseVal == nil || elseVal.Type().Equal(types.Void)
 	if thenVoid && elseVoid {
-		mergeBlock.NewRet(nil)
+		mergeBlock.NewBr(parent.NewBlock("if.continue"))
 		return nil
 	}
 	phi := mergeBlock.NewPhi(
 		&ir.Incoming{X: thenVal, Pred: thenBlock},
 		&ir.Incoming{X: elseVal, Pred: elseBlock},
 	)
-	mergeBlock.NewRet(phi)
+	cont := parent.NewBlock("if.continue")
+	mergeBlock.NewBr(cont)
+
 	return phi
 }
 
@@ -173,18 +153,18 @@ func (cg *CodeGen) emitIfBody(b *ir.Block, body parser.Expr, isTail bool) value.
 }
 
 func (cg *CodeGen) emitString(v *parser.StringLiteral) value.Value {
+	if g, ok := cg.strGlobals[v.Value]; ok {
+		zero := constant.NewInt(types.I32, 0)
+		return constant.NewGetElementPtr(g.Init.Type(), g, zero, zero)
+	}
 	label := cg.newStrLabel()
 	str := constant.NewCharArrayFromString(v.Value + "\x00")
 	global := cg.mod.NewGlobalDef(label, str)
 	global.Immutable = true
 	global.Align = 1
+	cg.strGlobals[v.Value] = global
 	zero := constant.NewInt(types.I32, 0)
-	return constant.NewGetElementPtr(
-		str.Typ,
-		global,
-		zero,
-		zero,
-	)
+	return constant.NewGetElementPtr(str.Typ, global, zero, zero)
 }
 
 func (cg *CodeGen) emitCall(b *ir.Block, c *parser.CallExpr, isTail bool) value.Value {
@@ -274,8 +254,6 @@ func (cg *CodeGen) emitMatchCond(b *ir.Block, scr value.Value, pat parser.Expr, 
 	default:
 		panic("unsupported match pattern: " + pat.NodeType())
 	}
-	// disable guards for now
-
 	if guard != nil {
 		guardVal := cg.emitExpr(b, guard, false)
 		if _, ok := guardVal.Type().(*types.IntType); ok {

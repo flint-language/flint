@@ -35,7 +35,7 @@ func (cg *CodeGen) emitExpr(b *ir.Block, e parser.Expr, isTail bool) value.Value
 	case *parser.InfixExpr:
 		return cg.emitInfix(b, v)
 	case *parser.IfExpr:
-		return cg.emitIf(b, v, isTail)
+		return cg.emitIf(b, v)
 	case *parser.MatchExpr:
 		return cg.emitMatch(b, v, isTail)
 	default:

@@ -106,7 +106,7 @@ func TestValDecl(t *testing.T) {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
 
-	v, ok := prog.Exprs[0].(*ValDeclExpr)
+	v, ok := prog.Exprs[0].(*VarDeclExpr)
 	if !ok {
 		t.Fatalf("expected ValDeclExpr, got %T", prog.Exprs[0])
 	}

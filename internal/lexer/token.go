@@ -75,7 +75,6 @@ const (
 	EndOfFile
 
 	KwAs
-	KwAssert
 	KwBool
 	KwByte
 	KwElse
@@ -88,7 +87,6 @@ const (
 	KwMatch
 	KwMut
 	KwNil
-	KwPanic
 	KwPub
 	KwString
 	KwThen
@@ -99,7 +97,6 @@ const (
 
 var KeywordMap = map[string]TokenKind{
 	"as":     KwAs,
-	"assert": KwAssert,
 	"Bool":   KwBool,
 	"Byte":   KwByte,
 	"else":   KwElse,
@@ -112,7 +109,6 @@ var KeywordMap = map[string]TokenKind{
 	"match":  KwMatch,
 	"mut":    KwMut,
 	"Nil":    KwNil,
-	"panic":  KwPanic,
 	"pub":    KwPub,
 	"String": KwString,
 	"then":   KwThen,

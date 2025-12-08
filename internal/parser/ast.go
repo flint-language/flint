@@ -108,26 +108,16 @@ func (c *CallExpr) NodeType() string {
 	return "CallExpr"
 }
 
-type ValDeclExpr struct {
-	Name  lexer.Token
-	Type  Expr
-	Value Expr
+type VarDeclExpr struct {
+	Mutable bool
+	Name    lexer.Token
+	Type    Expr
+	Value   Expr
 }
 
-func (d *ValDeclExpr) exprNode() {}
-func (d *ValDeclExpr) NodeType() string {
-	return "ValDeclExpr"
-}
-
-type MutDeclExpr struct {
-	Name  lexer.Token
-	Type  Expr
-	Value Expr
-}
-
-func (d *MutDeclExpr) exprNode() {}
-func (d *MutDeclExpr) NodeType() string {
-	return "MutDeclExpr"
+func (d *VarDeclExpr) exprNode() {}
+func (d *VarDeclExpr) NodeType() string {
+	return "VarDeclExpr"
 }
 
 type FuncDeclExpr struct {
@@ -321,6 +311,17 @@ type Decorator struct {
 func (t *Decorator) exprNode() {}
 func (t *Decorator) NodeType() string {
 	return "Decorator"
+}
+
+type AssignExpr struct {
+	Name  *Identifier
+	Value Expr
+	Pos   lexer.Token
+}
+
+func (a *AssignExpr) exprNode() {}
+func (a *AssignExpr) NodeType() string {
+	return "AssignExpr"
 }
 
 type Program struct {
