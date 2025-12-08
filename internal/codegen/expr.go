@@ -38,6 +38,12 @@ func (cg *CodeGen) emitExpr(b *ir.Block, e parser.Expr, isTail bool) value.Value
 		return cg.emitIf(b, v)
 	case *parser.MatchExpr:
 		return cg.emitMatch(b, v, isTail)
+	case *parser.VarDeclExpr:
+		return cg.emitVarDecl(b, v)
+	case *parser.AssignExpr:
+		return cg.emitAssign(b, v)
+	case *parser.PrefixExpr:
+		return cg.emitPrefix(b, v)
 	default:
 		panic("unsupported expression type")
 	}

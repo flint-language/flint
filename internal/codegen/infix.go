@@ -12,6 +12,7 @@ import (
 func (cg *CodeGen) emitInfix(b *ir.Block, e *parser.InfixExpr) value.Value {
 	l := cg.emitExpr(b, e.Left, false)
 	r := cg.emitExpr(b, e.Right, false)
+
 	switch e.Operator.Kind {
 	case lexer.Plus:
 		return b.NewAdd(l, r)
@@ -52,6 +53,7 @@ func (cg *CodeGen) emitInfix(b *ir.Block, e *parser.InfixExpr) value.Value {
 	case lexer.GreaterEqualDot:
 		return b.NewFCmp(enum.FPredOGE, l, r)
 	case lexer.LtGt:
+		// return cg.emitConcat(b, e, l, r)
 		return nil
 	case lexer.AmperAmper:
 		return b.NewAnd(l, r)

@@ -1,5 +1,17 @@
-pub fn main() Int {
-    mut x: Int = 10
-    x = 1
-    x
+@external(c, "flint_stdlib", "assert")
+pub fn assert(cond: Bool) Nil
+
+@external(c, "flint_stdlib", "print")
+pub fn print(string: String) Nil
+
+pub fn println(v: String) Nil {
+    print(v)
+    print("\n")
+}
+
+pub fn main() Nil {
+    mut x: String = "Hi Universe!"
+    println(x)
+    x = "Hello World!"
+    println(x)
 }

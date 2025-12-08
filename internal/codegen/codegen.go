@@ -191,6 +191,38 @@ func (cg *CodeGen) emitCall(b *ir.Block, c *parser.CallExpr, isTail bool) value.
 	return callInst
 }
 
+func (cg *CodeGen) emitAssign(b *ir.Block, e *parser.AssignExpr) value.Value {
+	expr := cg.emitExpr(b, e.Value, false)
+	alloc := cg.locals[e.Name.Name]
+	b.NewStore(expr, alloc)
+	return alloc
+}
+
+func (cg *CodeGen) emitVarDecl(b *ir.Block, e *parser.VarDeclExpr) value.Value {
+	expr := cg.emitExpr(b, e.Value, false)
+	alloc := b.NewAlloca(expr.Type())
+	cg.locals[e.Name.Lexeme] = alloc
+	b.NewStore(expr, alloc)
+	return alloc
+}
+
+func (cg *CodeGen) emitPrefix(b *ir.Block, e *parser.PrefixExpr) value.Value {
+	expr := cg.emitExpr(b, e.Right, false)
+	ty := expr.Type()
+
+	switch e.Operator.Kind {
+	case lexer.Minus:
+		intType := ty.(*types.IntType)
+		return b.NewSub(constant.NewInt(intType, 0), expr)
+	case lexer.MinusDot:
+		floatType := ty.(*types.FloatType)
+		return b.NewFSub(constant.NewFloat(floatType, 0), expr)
+	case lexer.Bang:
+		return b.NewXor(constant.True, expr)
+	}
+	return nil
+}
+
 func (cg *CodeGen) emitDefaultReturn(b *ir.Block, ret types.Type, isMain bool) {
 	if isMain {
 		b.NewRet(constant.NewInt(types.I32, 0))
