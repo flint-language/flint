@@ -5,7 +5,6 @@ pub fn assert(cond: Bool) Nil
 pub fn print(string: String) Nil
 
 fn test(x: Int) Int { x }
-
 pub fn main() Nil {
     match test(1) {
         | 1 -> print("One")

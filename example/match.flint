@@ -1,5 +1,24 @@
-pub fn main() Int {
-    val x: List(Int) = [1, 2, 3]
-    val y: Int = x[1]
-    y
+@external(c, "flint_stdlib", "assert")
+pub fn assert(cond: Bool) Nil
+
+@external(c, "flint_stdlib", "print")
+pub fn print(string: String) Nil
+
+pub fn println(v: String) Nil {
+    print(v)
+    print("\n")
+}
+
+pub fn main() Nil {
+    val a: List(String) = ["1", "2", "3"]
+    println(a[0])
+
+    // val d: (Int, Float, String) = (1, 4.1, "Hiiiii")
+    // val b: List((Int, Float, String)) = [(1, 4.1, "Hiiiii"), (1, 4.1, "oooooo")]
+    // println(b[0][2])
+
+    mut c: String = "Hi Universe!"
+    println(c)
+    c = "Hello World!"
+    println(c)
 }

@@ -44,6 +44,12 @@ func (cg *CodeGen) emitExpr(b *ir.Block, e parser.Expr, isTail bool) value.Value
 		return cg.emitAssign(b, v)
 	case *parser.PrefixExpr:
 		return cg.emitPrefix(b, v)
+	case *parser.ListExpr:
+		return cg.emitList(b, v)
+	case *parser.TupleExpr:
+		return cg.emitTuple(b, v)
+	case *parser.IndexExpr:
+		return cg.emitIndex(b, v)
 	default:
 		panic("unsupported expression type")
 	}

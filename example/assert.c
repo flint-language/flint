@@ -23,3 +23,4 @@ extern char *to_string(int64_t i)
 	static char buffer[32];
 	sprintf(buffer, "%lld", (long long)i);
 	return buffer;
+}
