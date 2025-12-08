@@ -4,6 +4,7 @@ pub fn print(string: String) Nil
 pub fn main() Nil {
     val x: List(String) = ["1", "2", "3"]
     val y: (Int, String) = (1, "Hello")
+    val a: Int = 1
     print(x[0])
     print("\n")
     print(y[1])

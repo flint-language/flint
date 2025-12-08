@@ -1,6 +1,8 @@
 package codegen
 
 import (
+	"fmt"
+
 	"github.com/llir/llvm/ir"
 	"github.com/llir/llvm/ir/constant"
 	"github.com/llir/llvm/ir/enum"
@@ -119,7 +121,7 @@ func (cg *CodeGen) emitBlock(b *ir.Block, blk *parser.BlockExpr, isTail bool) va
 	return last
 }
 
-func (cg *CodeGen) emitIf(b *ir.Block, i *parser.IfExpr) value.Value {
+func (cg *CodeGen) emitIf(b *ir.Block, i *parser.IfExpr, isTail bool) value.Value {
 	cond := cg.emitExpr(b, i.Cond, false)
 	parent := b.Parent
 	thenBlock := parent.NewBlock("if.then")
@@ -134,19 +136,48 @@ func (cg *CodeGen) emitIf(b *ir.Block, i *parser.IfExpr) value.Value {
 	if elseBlock.Term == nil {
 		elseBlock.NewBr(mergeBlock)
 	}
-	thenVoid := thenVal == nil || thenVal.Type().Equal(types.Void)
-	elseVoid := elseVal == nil || elseVal.Type().Equal(types.Void)
-	if thenVoid && elseVoid {
-		mergeBlock.NewBr(parent.NewBlock("if.continue"))
+	var phiType types.Type
+	if thenVal != nil {
+		phiType = thenVal.Type()
+	}
+	if elseVal != nil {
+		if phiType == nil {
+			phiType = elseVal.Type()
+		} else if !elseVal.Type().Equal(phiType) {
+			panic(fmt.Sprintf("if branch type mismatch: %v vs %v", elseVal.Type(), phiType))
+		}
+	}
+	if phiType == nil {
+		mergeBlock.NewRet(nil)
 		return nil
 	}
-	phi := mergeBlock.NewPhi(
-		&ir.Incoming{X: thenVal, Pred: thenBlock},
-		&ir.Incoming{X: elseVal, Pred: elseBlock},
-	)
-	cont := parent.NewBlock("if.continue")
-	mergeBlock.NewBr(cont)
-
+	if phiType.Equal(types.Void) {
+		return mergeBlock
+	}
+	var incomings []*ir.Incoming
+	if thenVal != nil {
+		incomings = append(incomings, &ir.Incoming{X: thenVal, Pred: thenBlock})
+	} else {
+		incomings = append(incomings, &ir.Incoming{X: constant.NewUndef(phiType), Pred: thenBlock})
+	}
+	if elseVal != nil {
+		incomings = append(incomings, &ir.Incoming{X: elseVal, Pred: elseBlock})
+	} else {
+		incomings = append(incomings, &ir.Incoming{X: constant.NewUndef(phiType), Pred: elseBlock})
+	}
+	if referencesBlock(b, mergeBlock) {
+		incomings = append(incomings, ir.NewIncoming(constant.NewUndef(phiType), b))
+	}
+	phi := mergeBlock.NewPhi(incomings...)
+	if mergeBlock.Term == nil {
+		if phiType.Equal(types.Void) {
+			mergeBlock.NewRet(nil)
+		} else {
+			mergeBlock.NewRet(phi)
+		}
+	} else if isTail {
+		mergeBlock.NewRet(phi)
+	}
 	return phi
 }
 

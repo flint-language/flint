@@ -2,6 +2,7 @@ package codegen
 
 import (
 	"flint/internal/parser"
+	"fmt"
 
 	"github.com/llir/llvm/ir"
 	"github.com/llir/llvm/ir/constant"
@@ -35,7 +36,7 @@ func (cg *CodeGen) emitExpr(b *ir.Block, e parser.Expr, isTail bool) value.Value
 	case *parser.InfixExpr:
 		return cg.emitInfix(b, v)
 	case *parser.IfExpr:
-		return cg.emitIf(b, v)
+		return cg.emitIf(b, v, isTail)
 	case *parser.MatchExpr:
 		return cg.emitMatch(b, v, isTail)
 	case *parser.VarDeclExpr:
@@ -50,6 +51,38 @@ func (cg *CodeGen) emitExpr(b *ir.Block, e parser.Expr, isTail bool) value.Value
 		return cg.emitTuple(b, v)
 	case *parser.IndexExpr:
 		return cg.emitIndex(b, v)
+	case *parser.FuncDeclExpr:
+		unique := fmt.Sprintf("%s$%d", v.Name.Lexeme, len(cg.funcs))
+		retTy := cg.resolveType(v.Ret)
+		params := []*ir.Param{}
+		for _, p := range v.Params {
+			params = append(params, ir.NewParam(p.Name.Lexeme, cg.resolveType(p.Type)))
+		}
+		irfn := cg.mod.NewFunc(unique, retTy, params...)
+		cg.funcs[v.Name.Lexeme] = irfn
+		savedLocals := cg.locals
+		cg.locals = map[string]value.Value{}
+		entry := irfn.NewBlock("entry")
+		for _, param := range irfn.Params {
+			alloc := entry.NewAlloca(param.Type())
+			entry.NewStore(param, alloc)
+			cg.locals[param.Name()] = alloc
+		}
+		block := v.Body.(*parser.BlockExpr)
+		lastVal := cg.emitBlock(entry, block, v.Recursion)
+		if retTy.Equal(types.Void) {
+			entry.NewRet(nil)
+		} else if lastVal != nil {
+			if parent := parentBlockOfValue(lastVal); parent != nil && parent.Term == nil {
+				parent.NewRet(lastVal)
+			} else if entry.Term == nil {
+				entry.NewRet(lastVal)
+			}
+		} else {
+			entry.NewRet(constant.NewInt(types.I64, 0))
+		}
+		cg.locals = savedLocals
+		return nil
 	default:
 		panic("unsupported expression type")
 	}

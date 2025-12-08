@@ -113,7 +113,13 @@ func (cg *CodeGen) emitMatch(b *ir.Block, m *parser.MatchExpr, isTail bool) valu
 		return mergeBlock
 	}
 	phi := mergeBlock.NewPhi(incomings...)
-	if isTail {
+	if mergeBlock.Term == nil {
+		if phiType.Equal(types.Void) {
+			mergeBlock.NewRet(nil)
+		} else {
+			mergeBlock.NewRet(phi)
+		}
+	} else if isTail {
 		mergeBlock.NewRet(phi)
 	}
 	return phi

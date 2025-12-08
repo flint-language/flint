@@ -1,0 +1,20 @@
+@external(c, "flint_stdlib", "print")
+pub fn print(string: String) Nil
+
+@external(c, "flint_stdlib", "to_string")
+pub fn to_string(int: Int) String
+
+fn fib(n: Int) Int {
+    fn aux(m: Int, a: Int, b: Int) Int {
+        match m {
+            | 0 -> a
+            | _ -> aux(m - 1, b, a + b)
+        }
+    }
+    aux(n, 0, 1)
+}
+
+pub fn main() Nil {
+    print(to_string(fib(10)))
+    print("\n")
+}
