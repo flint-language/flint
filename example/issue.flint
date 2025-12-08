@@ -1,0 +1,13 @@
+@external(c, "flint_stdlib", "print")
+pub fn print(string: String) Nil
+
+pub fn main() Nil {
+    val x: Int = 10
+    match x {
+        | 10 -> print("Ten")
+        | _ -> match x == 20 {
+            | True -> print("20")
+            | False -> print("Otherwise")
+        }
+    }
+}

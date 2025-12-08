@@ -180,17 +180,24 @@ func (cg *CodeGen) emitIndex(b *ir.Block, e *parser.IndexExpr) value.Value {
 	indexVal := cg.emitExpr(b, e.Index, false)
 	switch e.Target.(type) {
 	case *parser.TupleExpr, *parser.Identifier:
-		idx, ok := indexVal.(*constant.Int)
+		idxConst, ok := indexVal.(*constant.Int)
 		if !ok {
 			panic("Index must be constant int for tuple")
 		}
+		ptr, ok := target.(*ir.InstAlloca)
+		if !ok {
+			ptrType := target.Type()
+			ptr = b.NewAlloca(ptrType)
+			b.NewStore(target, ptr)
+		}
+		structType := ptr.Type().(*types.PointerType).ElemType.(*types.StructType)
 		elemPtr := b.NewGetElementPtr(
-			target.Type().(*types.PointerType).ElemType,
-			target,
+			structType,
+			ptr,
 			constant.NewInt(types.I32, 0),
-			constant.NewInt(types.I32, idx.X.Int64()),
+			constant.NewInt(types.I32, idxConst.X.Int64()),
 		)
-		return b.NewLoad(elemPtr.Type().(*types.PointerType).ElemType, elemPtr)
+		return b.NewLoad(structType.Fields[idxConst.X.Int64()], elemPtr)
 	default:
 		elemType := target.Type().(*types.PointerType).ElemType
 		elemPtr := b.NewGetElementPtr(
@@ -203,17 +210,16 @@ func (cg *CodeGen) emitIndex(b *ir.Block, e *parser.IndexExpr) value.Value {
 }
 
 func (cg *CodeGen) emitTuple(b *ir.Block, e *parser.TupleExpr) value.Value {
-	exprs := make([]value.Value, 0)
-	tTypes := make([]types.Type, 0)
-	for _, elem := range e.Elements {
-		expr := cg.emitExpr(b, elem, false)
-		exprs = append(exprs, expr)
-		tTypes = append(tTypes, expr.Type())
+	exprs := make([]value.Value, len(e.Elements))
+	tTypes := make([]types.Type, len(e.Elements))
+	for i, elem := range e.Elements {
+		exprs[i] = cg.emitExpr(b, elem, false)
+		tTypes[i] = exprs[i].Type()
 	}
 	tupleType := types.NewStruct(tTypes...)
 	alloc := b.NewAlloca(tupleType)
-	for idx, expr := range exprs {
-		index := constant.NewInt(types.I32, int64(idx))
+	for i, expr := range exprs {
+		index := constant.NewInt(types.I32, int64(i))
 		elemPtr := b.NewGetElementPtr(tupleType, alloc, constant.NewInt(types.I32, 0), index)
 		b.NewStore(expr, elemPtr)
 	}

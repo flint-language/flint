@@ -89,6 +89,8 @@ func (tc *TypeChecker) Check(expr parser.Expr) *Type {
 		return tc.visitAssign(e)
 	case *parser.IndexExpr:
 		return tc.visitIndex(e)
+	case *parser.TupleExpr:
+		return tc.visitTuple(e)
 	default:
 		return &Type{TKind: TyError}
 	}
@@ -470,6 +472,18 @@ func (tc *TypeChecker) visitIndex(idx *parser.IndexExpr) *Type {
 	default:
 		return &Type{TKind: TyError}
 	}
+}
+
+func (tc *TypeChecker) visitTuple(t *parser.TupleExpr) *Type {
+	elems := make([]*Type, len(t.Elements))
+	for i, e := range t.Elements {
+		ty := tc.Check(e)
+		if ty == nil || ty.TKind == TyError {
+			return tc.errorAt(t.Pos, fmt.Sprintf("cannot infer type for tuple element %d", i+1))
+		}
+		elems[i] = ty
+	}
+	return &Type{TKind: TyTuple, TElems: elems}
 }
 
 // TODO: Add records

@@ -34,9 +34,9 @@ func (t Type) String() string {
 	switch t.TKind {
 	case TyInt:
 		if PlatformIntBits == 32 {
-			return "Int32"
+			return "Int"
 		}
-		return "Int64"
+		return "Int"
 	case TyFloat:
 		return "Float"
 	case TyBool:

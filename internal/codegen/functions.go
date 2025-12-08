@@ -45,20 +45,22 @@ func (cg *CodeGen) emitFunction(fn *parser.FuncDeclExpr) {
 			}
 		}
 		exit.NewRet(constant.NewInt(types.I32, 0))
-	} else if retTy.Equal(types.Void) {
+		return
+	}
+	if retTy.Equal(types.Void) {
 		if entry.Term == nil {
 			entry.NewRet(nil)
 		}
-	} else {
-		if lastVal != nil {
-			if b := parentBlockOfValue(lastVal); b != nil && b.Term == nil {
-				b.NewRet(lastVal)
-			} else if entry.Term == nil {
-				entry.NewRet(lastVal)
-			}
+		return
+	}
+	if lastVal != nil {
+		if b := parentBlockOfValue(lastVal); b != nil && b.Term == nil {
+			b.NewRet(lastVal)
 		} else if entry.Term == nil {
-			cg.emitDefaultReturn(entry, retTy, false)
+			entry.NewRet(lastVal)
 		}
+	} else if entry.Term == nil {
+		cg.emitDefaultReturn(entry, retTy, false)
 	}
 }
 

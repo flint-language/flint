@@ -1,0 +1,26 @@
+@external(c, "flint_stdlib", "print")
+pub fn print(string: String) Nil
+
+@external(c, "flint_stdlib", "to_string")
+pub fn to_string(int: Int) String
+
+fn fib_pair(n: Int) (Int, Int) {
+    if n == 0 {
+        (0, 1)
+    } else {
+        val a: (Int, Int) = fib_pair(n / 2)
+        val c: Int = a[0] * (2 * a[1] - a[0])
+        val d: Int = a[0] * a[0] + a[1] * a[1]
+        if n % 2 == 0 then (c, d) else (d, c + d)
+    }
+}
+
+fn fib(n: Int) Int {
+    val f: (Int, Int) = fib_pair(n)
+    f[0]
+}
+
+pub fn main() Nil {
+    print(to_string(fib(10)))
+    print("\n")
+}
