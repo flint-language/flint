@@ -9,7 +9,7 @@ import (
 
 func compileFile(filename string) {
 	prog, _ := loadAndParse(filename)
-	ir := codegen.GenerateLLVM(prog)
+	ir := codegen.GenerateLLVM(prog, filename)
 	outFile := filename
 	if idx := strings.LastIndex(filename, "."); idx != -1 {
 		outFile = filename[:idx]

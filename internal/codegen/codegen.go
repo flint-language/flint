@@ -21,13 +21,14 @@ type CodeGen struct {
 	funcs  map[string]*ir.Func
 }
 
-func GenerateLLVM(prog *parser.Program) string {
+func GenerateLLVM(prog *parser.Program, sourceFile string) string {
 	cg := &CodeGen{
 		mod:        ir.NewModule(),
 		locals:     map[string]value.Value{},
 		funcs:      map[string]*ir.Func{},
 		strGlobals: map[string]*ir.Global{},
 	}
+	cg.initModuleHeaders(sourceFile)
 	for _, e := range prog.Exprs {
 		if fn, ok := e.(*parser.FuncDeclExpr); ok {
 			name := fn.Name.Lexeme

@@ -1,7 +1,9 @@
 package codegen
 
 import (
+	"bytes"
 	"flint/internal/typechecker"
+	"os/exec"
 
 	"github.com/llir/llvm/ir/types"
 )
@@ -24,4 +26,12 @@ func (cg *CodeGen) platformFloatType() *types.FloatType {
 		return types.Float
 	}
 	return types.Double
+}
+
+func detectHostTriple() string {
+	out, err := exec.Command("clang", "-dumpmachine").Output()
+	if err != nil {
+		return "x86_64-unknown-linux-gnu"
+	}
+	return string(bytes.TrimSpace(out))
 }

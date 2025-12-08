@@ -1,14 +1,11 @@
-@external(c, "flint_stdlib", "assert")
-pub fn assert(cond: Bool) Nil
-
 @external(c, "flint_stdlib", "print")
 pub fn print(string: String) Nil
 
-fn test(x: Int) Int { x }
-
 pub fn main() Nil {
-    match test(1) {
-        | 1 -> print("One")
-        | 2 -> print("Two")
-    }
+    val x: List(String) = ["1", "2", "3"]
+    val y: (Int, String) = (1, "Hello")
+    print(x[0])
+    print("\n")
+    print(y[1])
+    print("\n")
 }

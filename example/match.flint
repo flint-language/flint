@@ -1,4 +1,0 @@
-pub fn main() Int {
-    val x: (Int, String) = (1, "String")
-    val y: Int = x[0]
-}
