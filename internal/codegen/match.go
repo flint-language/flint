@@ -64,7 +64,7 @@ func (cg *CodeGen) emitMatch(b *ir.Block, m *parser.MatchExpr, isTail bool) valu
 		}
 		if !armMap[name].IsWildCardArm() {
 			current = checkList[armId]
-			if current != nil {
+			if current != nil && current.Term == nil {
 				arm := armMap[name]
 				cond := cg.emitMatchCond(current, scrutinee, arm.Pattern, arm.Guard)
 				current.NewCondBr(cond, armBlock, nextList[armId])
@@ -72,54 +72,27 @@ func (cg *CodeGen) emitMatch(b *ir.Block, m *parser.MatchExpr, isTail bool) valu
 		}
 		if armBlock.Term == nil {
 			armBlock.NewBr(mergeBlock)
+		}
+		if phiType != nil {
 			if armBody != nil {
-				if phiType == nil {
-					phiType = armBody.Type()
-				} else if !armBody.Type().Equal(phiType) {
-					panic(fmt.Sprintf("match arm type mismatch: %v vs %v (arm %d)", armBody.Type(), phiType, armId))
-				}
-				incomings = append(incomings, &ir.Incoming{
-					X:    armBody,
-					Pred: armBlock,
-				})
-			} else if phiType != nil {
-				incomings = append(incomings, &ir.Incoming{
-					X:    constant.NewUndef(phiType),
-					Pred: armBlock,
-				})
+				incomings = append(incomings, &ir.Incoming{X: armBody, Pred: armBlock})
+			} else {
+				incomings = append(incomings, &ir.Incoming{X: constant.NewUndef(phiType), Pred: armBlock})
 			}
 		}
 		armId++
 	}
-	if phiType == nil {
-		mergeBlock.NewRet(nil)
-		return nil
+	if current != nil && current.Term == nil {
+		current.NewBr(mergeBlock)
 	}
-	if referencesBlock(b, mergeBlock) {
-		incomings = append(incomings, ir.NewIncoming(
-			constant.NewUndef(phiType),
-			b,
-		))
-	}
-	for _, v := range checkList {
-		if referencesBlock(v, mergeBlock) {
-			incomings = append(incomings, ir.NewIncoming(
-				constant.NewUndef(phiType),
-				v,
-			))
+	if phiType == nil || phiType.Equal(types.Void) {
+		if mergeBlock.Term == nil {
+			mergeBlock.NewRet(nil)
 		}
-	}
-	if phiType.Equal(types.Void) {
 		return mergeBlock
 	}
 	phi := mergeBlock.NewPhi(incomings...)
 	if mergeBlock.Term == nil {
-		if phiType.Equal(types.Void) {
-			mergeBlock.NewRet(nil)
-		} else {
-			mergeBlock.NewRet(phi)
-		}
-	} else if isTail {
 		mergeBlock.NewRet(phi)
 	}
 	return phi
