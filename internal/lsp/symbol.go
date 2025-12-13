@@ -13,14 +13,11 @@ const (
 )
 
 type Symbol struct {
-	Name       string
-	Kind       SymbolKind
-	Type       string
-	CurriedSig string
-	Line       int
+	Name string
+	Kind SymbolKind
+	Type string
+	Line int
 }
-
-var symbols = map[string][]Symbol{}
 
 func updateSymbols(uri string, prog *parser.Program) {
 	syms := symbols[uri]
@@ -37,7 +34,7 @@ func updateSymbols(uri string, prog *parser.Program) {
 		case *parser.VarDeclExpr:
 			typ := "_"
 			if node.Type != nil {
-				typ = node.Type.NodeType()
+				typ = formatType(node.Type)
 			}
 			syms = append(syms, Symbol{
 				Name: node.Name.Lexeme,
@@ -46,25 +43,25 @@ func updateSymbols(uri string, prog *parser.Program) {
 				Line: node.Name.Line,
 			})
 		case *parser.FuncDeclExpr:
-			curriedTypes := make([]string, len(node.Params))
+			paramTypes := make([]string, len(node.Params))
 			for i, p := range node.Params {
-				t := "_"
-				if p.Type != nil {
-					t = p.Type.NodeType()
+				paramTypes[i] = formatType(p.Type)
+			}
+			retType := formatType(node.Ret)
+			var sig strings.Builder
+			sig.WriteString("pub fun " + node.Name.Lexeme + "(")
+			for i, p := range node.Params {
+				if i > 0 {
+					sig.WriteString(", ")
 				}
-				curriedTypes[i] = t
+				sig.WriteString(p.Name.Lexeme + ": " + formatType(p.Type))
 			}
-			retType := "_"
-			if node.Ret != nil {
-				retType = node.Ret.NodeType()
-			}
-			curriedSig := strings.Join(curriedTypes, " -> ") + " -> " + retType
+			sig.WriteString(") " + retType)
 			syms = append(syms, Symbol{
-				Name:       node.Name.Lexeme,
-				Kind:       FunctionSymbol,
-				CurriedSig: curriedSig,
-				Type:       node.Name.Lexeme,
-				Line:       node.Name.Line,
+				Name: node.Name.Lexeme,
+				Kind: FunctionSymbol,
+				Type: sig.String(),
+				Line: node.Name.Line,
 			})
 			if node.Body != nil {
 				stack = append(stack, node.Body)

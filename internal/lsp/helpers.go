@@ -14,6 +14,8 @@ import (
 
 var (
 	parseTimers = map[string]*time.Timer{}
+	docs        = map[string]string{}
+	symbols     = map[string][]Symbol{}
 	parseMu     sync.Mutex
 )
 
@@ -65,4 +67,19 @@ func parseAndUpdateSymbols(uri string) {
 	runDiagnostics(uri)
 	tokens = nil
 	prog = nil
+}
+
+func formatType(e parser.Expr) string {
+	if e == nil {
+		return "_"
+	}
+	switch t := e.(type) {
+	case *parser.TypeExpr:
+		if t.Generic != nil {
+			return t.Name + "<" + formatType(t.Generic) + ">"
+		}
+		return t.Name
+	default:
+		return "_"
+	}
 }

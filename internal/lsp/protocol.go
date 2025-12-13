@@ -33,7 +33,6 @@ type ServerCapabilities struct {
 	TextDocumentSync   int                `json:"textDocumentSync"`
 	CompletionProvider *CompletionOptions `json:"completionProvider"`
 	HoverProvider      bool               `json:"hoverProvider"`
-	CodeLensProvider   *CodeLensOptions   `json:"codeLensProvider"`
 }
 
 type DidOpenTextDocumentParams struct {
@@ -110,24 +109,4 @@ type HoverParams struct {
 
 type HoverResult struct {
 	Contents string `json:"contents"`
-}
-
-type CodeLensOptions struct {
-	ResolveProvider bool `json:"resolveProvider"`
-}
-
-type CodeLens struct {
-	Range   Range    `json:"range"`
-	Command *Command `json:"command,omitempty"`
-	Data    any      `json:"data,omitempty"`
-}
-
-type Command struct {
-	Title   string `json:"title"`
-	Command string `json:"command"`
-	Args    []any  `json:"arguments,omitempty"`
-}
-
-type CodeLensParams struct {
-	TextDocument TextDocumentIdentifier `json:"textDocument"`
 }

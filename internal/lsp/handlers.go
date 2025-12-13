@@ -2,6 +2,7 @@ package lsp
 
 import (
 	"encoding/json"
+	"flint/internal/lexer"
 	"strings"
 	"time"
 )
@@ -13,9 +14,6 @@ func handleInitialize(req RequestMessage) {
 			CompletionProvider: &CompletionOptions{
 				ResolveProvider:   false,
 				TriggerCharacters: []string{"."},
-			},
-			CodeLensProvider: &CodeLensOptions{
-				ResolveProvider: false,
 			},
 			HoverProvider: true,
 		},
@@ -92,10 +90,6 @@ func runDiagnostics(uri string) {
 	})
 }
 
-var keywords = []string{
-	"as", "assert", "Bool", "Byte", "else", "Float", "fn", "for", "if", "in", "Int", "List", "match", "mut", "Nil", "panic", "pub", "String", "type", "use", "val", "where",
-}
-
 func handleCompletion(req RequestMessage) {
 	var params CompletionParams
 	json.Unmarshal(req.Params, &params)
@@ -111,7 +105,7 @@ func handleCompletion(req RequestMessage) {
 		prefix = fields[len(fields)-1]
 	}
 	suggestions := []CompletionItem{}
-	for _, kw := range keywords {
+	for kw := range lexer.KeywordMap {
 		if strings.HasPrefix(kw, prefix) {
 			suggestions = append(suggestions, CompletionItem{
 				Label: kw,
@@ -150,65 +144,34 @@ func handleHover(req RequestMessage) {
 		return
 	}
 	line := lines[params.Position.Line]
-	word := ""
-	start := min(params.Position.Character, len(line))
-	i := start - 1
-	for i >= 0 && (isIdentifierChar(line[i])) {
-		i--
+	pos := min(params.Position.Character, len(line))
+	start := pos
+	for start > 0 && isIdentifierChar(line[start-1]) {
+		start--
 	}
-	left := i + 1
-	j := start
-	for j < len(line) && isIdentifierChar(line[j]) {
-		j++
+	end := pos
+	for end < len(line) && isIdentifierChar(line[end]) {
+		end++
 	}
-	right := j
-	if left < right {
-		word = line[left:right]
+	if start >= end {
+		return
 	}
-	var hoverText string
-	for _, sym := range symbols[params.TextDocument.URI] {
-		if sym.Name == word {
-			hoverText = "```flint\n" + sym.Type + "\n```"
-			break
-		}
+	word := line[start:end]
+	syms, ok := symbols[params.TextDocument.URI]
+	if !ok {
+		return
 	}
-	send(ResponseMessage{
-		Jsonrpc: "2.0",
-		ID:      req.ID,
-		Result: HoverResult{
-			Contents: hoverText,
-		},
-	})
-}
-
-func handleCodeLens(req RequestMessage) {
-	var params CodeLensParams
-	json.Unmarshal(req.Params, &params)
-	syms := symbols[params.TextDocument.URI]
-	lenses := []CodeLens{}
 	for _, sym := range syms {
-		if sym.Kind != FunctionSymbol {
-			continue
+		if sym.Name == word {
+			text := "```flint\n" + sym.Type + "\n```"
+			send(ResponseMessage{
+				Jsonrpc: "2.0",
+				ID:      req.ID,
+				Result: HoverResult{
+					Contents: text,
+				},
+			})
+			return
 		}
-		lenses = append(lenses, CodeLens{
-			Range: Range{
-				Start: Position{
-					Line:      sym.Line - 1,
-					Character: 0,
-				},
-				End: Position{
-					Line:      sym.Line - 1,
-					Character: 0,
-				},
-			},
-			Command: &Command{
-				Title: sym.CurriedSig,
-			},
-		})
 	}
-	send(ResponseMessage{
-		Jsonrpc: "2.0",
-		ID:      req.ID,
-		Result:  lenses,
-	})
 }

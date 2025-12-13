@@ -28,8 +28,6 @@ func StartLsp() {
 			handleCompletion(req)
 		case "textDocument/hover":
 			handleHover(req)
-		case "textDocument/codeLens":
-			handleCodeLens(req)
 		case "shutdown":
 			handleShutdown(req)
 		case "exit":
