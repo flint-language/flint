@@ -1,7 +1,7 @@
 package lsp
 
 import (
-	"regexp"
+	"flint/internal/parser"
 	"strings"
 )
 
@@ -13,32 +13,73 @@ const (
 )
 
 type Symbol struct {
-	Name string
-	Kind SymbolKind
+	Name       string
+	Kind       SymbolKind
+	Type       string
+	CurriedSig string
+	Line       int
 }
 
 var symbols = map[string][]Symbol{}
 
-var (
-	fnRegex  = regexp.MustCompile(`^(?:pub\s+)?fn\s+([A-Za-z_][A-Za-z0-9_]*)\s*\(`)
-	varRegex = regexp.MustCompile(`^(?:val|mut)\s+([A-Za-z_][A-Za-z0-9_]*)`)
-)
-
-func updateSymbols(uri, text string) {
-	syms := []Symbol{}
-	lines := strings.SplitSeq(text, "\n")
-
-	for line := range lines {
-		line = strings.TrimSpace(line)
-		if fnMatch := fnRegex.FindStringSubmatch(line); fnMatch != nil {
-			syms = append(syms, Symbol{Name: fnMatch[1], Kind: FunctionSymbol})
+func updateSymbols(uri string, prog *parser.Program) {
+	syms := symbols[uri]
+	syms = syms[:0]
+	stack := make([]parser.Expr, len(prog.Exprs))
+	copy(stack, prog.Exprs)
+	for len(stack) > 0 {
+		n := stack[len(stack)-1]
+		stack = stack[:len(stack)-1]
+		if n == nil {
 			continue
 		}
-
-		if varMatch := varRegex.FindStringSubmatch(line); varMatch != nil {
-			syms = append(syms, Symbol{Name: varMatch[1], Kind: VariableSymbol})
+		switch node := n.(type) {
+		case *parser.VarDeclExpr:
+			typ := "_"
+			if node.Type != nil {
+				typ = node.Type.NodeType()
+			}
+			syms = append(syms, Symbol{
+				Name: node.Name.Lexeme,
+				Kind: VariableSymbol,
+				Type: typ,
+				Line: node.Name.Line,
+			})
+		case *parser.FuncDeclExpr:
+			curriedTypes := make([]string, len(node.Params))
+			for i, p := range node.Params {
+				t := "_"
+				if p.Type != nil {
+					t = p.Type.NodeType()
+				}
+				curriedTypes[i] = t
+			}
+			retType := "_"
+			if node.Ret != nil {
+				retType = node.Ret.NodeType()
+			}
+			curriedSig := strings.Join(curriedTypes, " -> ") + " -> " + retType
+			syms = append(syms, Symbol{
+				Name:       node.Name.Lexeme,
+				Kind:       FunctionSymbol,
+				CurriedSig: curriedSig,
+				Type:       node.Name.Lexeme,
+				Line:       node.Name.Line,
+			})
+			if node.Body != nil {
+				stack = append(stack, node.Body)
+			}
+		case *parser.BlockExpr:
+			for i := len(node.Exprs) - 1; i >= 0; i-- {
+				stack = append(stack, node.Exprs[i])
+			}
+		case *parser.AssignExpr:
+			syms = append(syms, Symbol{
+				Name: node.Name.Name,
+				Kind: VariableSymbol,
+				Type: node.Value.NodeType(),
+			})
 		}
 	}
-
 	symbols[uri] = syms
 }

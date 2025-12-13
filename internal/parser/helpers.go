@@ -40,3 +40,14 @@ func (p *Parser) expect(kind lexer.TokenKind) (lexer.Token, bool) {
 	p.synchronize()
 	return tok, false
 }
+
+func (p *Parser) attachDocs(expr Expr) {
+	if p.pendingDocs == nil {
+		return
+	}
+	switch n := expr.(type) {
+	case *FuncDeclExpr:
+		n.Docs = p.pendingDocs
+	}
+	p.pendingDocs = nil
+}

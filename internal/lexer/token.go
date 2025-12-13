@@ -18,10 +18,12 @@ type Token struct {
 const (
 	Illegal TokenKind = iota
 	Comment
+	DocComment
 
 	Identifier
 	Int
 	Float
+	Unsigned
 	String
 	Byte
 	Bool
@@ -79,10 +81,17 @@ const (
 	KwByte
 	KwElse
 	KwFloat
+	KwF32
+	KwF64
 	KwFn
+	KwFun
 	KwIf
 	KwIn
 	KwInt
+	KwI8
+	KwI16
+	KwI32
+	KwI64
 	KwList
 	KwMatch
 	KwMut
@@ -92,30 +101,47 @@ const (
 	KwThen
 	KwType
 	KwUse
+	KwUnsigned
+	KwU8
+	KwU16
+	KwU32
+	KwU64
 	KwVal
 )
 
 var KeywordMap = map[string]TokenKind{
-	"as":     KwAs,
-	"Bool":   KwBool,
-	"Byte":   KwByte,
-	"else":   KwElse,
-	"False":  Bool,
-	"Float":  KwFloat,
-	"fn":     KwFn,
-	"if":     KwIf,
-	"Int":    KwInt,
-	"List":   KwList,
-	"match":  KwMatch,
-	"mut":    KwMut,
-	"Nil":    KwNil,
-	"pub":    KwPub,
-	"String": KwString,
-	"then":   KwThen,
-	"True":   Bool,
-	"type":   KwType,
-	"use":    KwUse,
-	"val":    KwVal,
+	"as":       KwAs,
+	"Bool":     KwBool,
+	"Byte":     KwByte,
+	"else":     KwElse,
+	"False":    Bool,
+	"Float":    KwFloat,
+	"F32":      KwF32,
+	"F64":      KwF64,
+	"fn":       KwFn,
+	"fun":      KwFun,
+	"if":       KwIf,
+	"Int":      KwInt,
+	"I8":       KwI8,
+	"I16":      KwI16,
+	"I32":      KwI32,
+	"I64":      KwI64,
+	"List":     KwList,
+	"match":    KwMatch,
+	"mut":      KwMut,
+	"Nil":      KwNil,
+	"pub":      KwPub,
+	"String":   KwString,
+	"then":     KwThen,
+	"True":     Bool,
+	"type":     KwType,
+	"use":      KwUse,
+	"Unsigned": KwUnsigned,
+	"U8":       KwU8,
+	"U16":      KwU16,
+	"U32":      KwU32,
+	"U64":      KwU64,
+	"val":      KwVal,
 }
 
 var precedence = map[TokenKind]int{

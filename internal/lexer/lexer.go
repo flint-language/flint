@@ -39,37 +39,30 @@ func (l *Lexer) Next() Token {
 	l.consumeWhitespace()
 	startlineNumber, startcolumnNumber := l.lineNumber, l.columnNumber
 	ch := l.peekRuneAt(0)
-
 	if ch == 0 {
 		return l.makeToken(EndOfFile, "", startlineNumber, startcolumnNumber)
 	}
-
 	if isIdentifierStart(ch) {
 		lex := l.scanIdentifier()
 		kind := LookupIdentifier(lex)
 		return l.makeToken(kind, lex, startlineNumber, startcolumnNumber)
 	}
-
 	if unicode.IsDigit(ch) {
 		lex, kind := l.scanNumberLiteral()
 		return l.makeToken(kind, lex, startlineNumber, startcolumnNumber)
 	}
-
 	if ch == '"' {
-		lex := l.scanStringLiteral()
-		return l.makeToken(String, lex, startlineNumber, startcolumnNumber)
+		return l.makeToken(String, l.scanStringLiteral(), startlineNumber, startcolumnNumber)
 	}
-
 	if ch == '\'' {
-		lex := l.scanByteLiteral()
-		return l.makeToken(Byte, lex, startlineNumber, startcolumnNumber)
+		return l.makeToken(Byte, l.scanByteLiteral(), startlineNumber, startcolumnNumber)
 	}
-
+	if ch == '/' && l.peekRuneAt(1) == '*' {
+		return l.scanBlockComment()
+	}
 	if ch == '/' && l.peekRuneAt(1) == '/' {
-		lex := l.scanLineComment()
-		return l.makeToken(Comment, lex, startlineNumber, startcolumnNumber)
+		return l.makeToken(Comment, l.scanLineComment(), startlineNumber, startcolumnNumber)
 	}
-
 	switch ch {
 	case '=':
 		l.advanceRune()
@@ -86,7 +79,6 @@ func (l *Lexer) Next() Token {
 			return l.makeToken(NotEqual, "!=", startlineNumber, startcolumnNumber)
 		}
 		return l.makeToken(Bang, "!", startlineNumber, startcolumnNumber)
-
 	case '<':
 		l.advanceRune()
 		if l.peekRuneAt(0) == '=' {
@@ -106,7 +98,6 @@ func (l *Lexer) Next() Token {
 			return l.makeToken(LtGt, "<>", startlineNumber, startcolumnNumber)
 		}
 		return l.makeToken(Less, "<", startlineNumber, startcolumnNumber)
-
 	case '>':
 		l.advanceRune()
 		if l.peekRuneAt(0) == '=' {
@@ -122,7 +113,6 @@ func (l *Lexer) Next() Token {
 			return l.makeToken(GreaterDot, ">.", startlineNumber, startcolumnNumber)
 		}
 		return l.makeToken(Greater, ">", startlineNumber, startcolumnNumber)
-
 	case '+':
 		l.advanceRune()
 		if l.peekRuneAt(0) == '.' {
@@ -130,7 +120,6 @@ func (l *Lexer) Next() Token {
 			return l.makeToken(PlusDot, "+.", startlineNumber, startcolumnNumber)
 		}
 		return l.makeToken(Plus, "+", startlineNumber, startcolumnNumber)
-
 	case '-':
 		l.advanceRune()
 		if l.peekRuneAt(0) == '.' {
@@ -142,7 +131,6 @@ func (l *Lexer) Next() Token {
 			return l.makeToken(RArrow, "->", startlineNumber, startcolumnNumber)
 		}
 		return l.makeToken(Minus, "-", startlineNumber, startcolumnNumber)
-
 	case '*':
 		l.advanceRune()
 		if l.peekRuneAt(0) == '.' {
@@ -150,7 +138,6 @@ func (l *Lexer) Next() Token {
 			return l.makeToken(StarDot, "*.", startlineNumber, startcolumnNumber)
 		}
 		return l.makeToken(Star, "*", startlineNumber, startcolumnNumber)
-
 	case '/':
 		l.advanceRune()
 		if l.peekRuneAt(0) == '.' {
@@ -158,43 +145,33 @@ func (l *Lexer) Next() Token {
 			return l.makeToken(SlashDot, "/.", startlineNumber, startcolumnNumber)
 		}
 		return l.makeToken(Slash, "/", startlineNumber, startcolumnNumber)
-
 	case '%':
 		l.advanceRune()
 		return l.makeToken(Percent, "%", startlineNumber, startcolumnNumber)
-
 	case ':':
 		l.advanceRune()
 		return l.makeToken(Colon, ":", startlineNumber, startcolumnNumber)
-
 	case ',':
 		l.advanceRune()
 		return l.makeToken(Comma, ",", startlineNumber, startcolumnNumber)
-
 	case '{':
 		l.advanceRune()
 		return l.makeToken(LeftBrace, "{", startlineNumber, startcolumnNumber)
-
 	case '}':
 		l.advanceRune()
 		return l.makeToken(RightBrace, "}", startlineNumber, startcolumnNumber)
-
 	case '(':
 		l.advanceRune()
 		return l.makeToken(LeftParen, "(", startlineNumber, startcolumnNumber)
-
 	case ')':
 		l.advanceRune()
 		return l.makeToken(RightParen, ")", startlineNumber, startcolumnNumber)
-
 	case '[':
 		l.advanceRune()
 		return l.makeToken(LeftBracket, "[", startlineNumber, startcolumnNumber)
-
 	case ']':
 		l.advanceRune()
 		return l.makeToken(RightBracket, "]", startlineNumber, startcolumnNumber)
-
 	case '|':
 		l.advanceRune()
 		if l.peekRuneAt(0) == '|' {
@@ -206,7 +183,6 @@ func (l *Lexer) Next() Token {
 			return l.makeToken(Pipe, "|>", startlineNumber, startcolumnNumber)
 		}
 		return l.makeToken(Vbar, "|", startlineNumber, startcolumnNumber)
-
 	case '&':
 		l.advanceRune()
 		if l.peekRuneAt(0) == '&' {
@@ -214,7 +190,6 @@ func (l *Lexer) Next() Token {
 			return l.makeToken(AmperAmper, "&&", startlineNumber, startcolumnNumber)
 		}
 		return l.makeToken(Illegal, "&", startlineNumber, startcolumnNumber)
-
 	case '.':
 		l.advanceRune()
 		if l.peekRuneAt(0) == '.' {
@@ -222,14 +197,11 @@ func (l *Lexer) Next() Token {
 			return l.makeToken(DotDot, "..", startlineNumber, startcolumnNumber)
 		}
 		return l.makeToken(Dot, ".", startlineNumber, startcolumnNumber)
-
 	case '@':
 		l.advanceRune()
 		return l.makeToken(At, "@", startlineNumber, startcolumnNumber)
-
 	default:
-		r := l.advanceRune()
-		return l.makeToken(Illegal, string(r), startlineNumber, startcolumnNumber)
+		return l.makeToken(Illegal, string(l.advanceRune()), startlineNumber, startcolumnNumber)
 	}
 }
 
@@ -296,6 +268,15 @@ func (l *Lexer) scanNumberLiteral() (string, TokenKind) {
 			break
 		}
 		l.advanceRune()
+	}
+	if l.peekRuneAt(0) == 'u' {
+		l.advanceRune()
+		lex := string(l.source[start:l.position])
+		clean := StripNumericSeparators(lex[:len(lex)-1])
+		if _, err := strconv.ParseUint(clean, 10, 64); err == nil {
+			return lex, Unsigned
+		}
+		return lex, Illegal
 	}
 	lex := string(l.source[start:l.position])
 	clean := StripNumericSeparators(lex)
@@ -417,6 +398,35 @@ func (l *Lexer) scanLineComment() string {
 		l.advanceRune()
 	}
 	return string(l.source[start:l.position])
+}
+
+func (l *Lexer) scanBlockComment() Token {
+	startLine, startCol := l.lineNumber, l.columnNumber
+	start := l.position
+	l.advanceRune()
+	l.advanceRune()
+	isDoc := false
+	if l.peekRuneAt(0) == '*' {
+		isDoc = true
+		l.advanceRune()
+	}
+	for {
+		ch := l.advanceRune()
+		if ch == 0 {
+			l.error("unterminated block comment")
+			break
+		}
+		if ch == '*' && l.peekRuneAt(0) == '/' {
+			l.advanceRune()
+			break
+		}
+	}
+	lexeme := string(l.source[start:l.position])
+	kind := Comment
+	if isDoc {
+		kind = DocComment
+	}
+	return l.makeToken(kind, lexeme, startLine, startCol)
 }
 
 func (l *Lexer) consumeWhitespace() {

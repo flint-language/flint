@@ -4,16 +4,16 @@ import "encoding/json"
 
 type RequestMessage struct {
 	Jsonrpc string           `json:"jsonrpc"`
-	ID      *json.RawMessage `json:"id,omitempty"`
+	ID      *json.RawMessage `json:"id"`
 	Method  string           `json:"method"`
-	Params  json.RawMessage  `json:"params,omitempty"`
+	Params  json.RawMessage  `json:"params"`
 }
 
 type ResponseMessage struct {
 	Jsonrpc string           `json:"jsonrpc"`
-	ID      *json.RawMessage `json:"id,omitempty"`
-	Result  any              `json:"result,omitempty"`
-	Error   *ResponseError   `json:"error,omitempty"`
+	ID      *json.RawMessage `json:"id"`
+	Result  any              `json:"result"`
+	Error   *ResponseError   `json:"error"`
 }
 
 type ResponseError struct {
@@ -31,7 +31,9 @@ type InitializeResult struct {
 
 type ServerCapabilities struct {
 	TextDocumentSync   int                `json:"textDocumentSync"`
-	CompletionProvider *CompletionOptions `json:"completionProvider,omitempty"`
+	CompletionProvider *CompletionOptions `json:"completionProvider"`
+	HoverProvider      bool               `json:"hoverProvider"`
+	CodeLensProvider   *CodeLensOptions   `json:"codeLensProvider"`
 }
 
 type DidOpenTextDocumentParams struct {
@@ -91,12 +93,41 @@ type TextDocumentIdentifier struct {
 
 type CompletionItem struct {
 	Label         string `json:"label"`
-	Kind          int    `json:"kind,omitempty"`
-	Detail        string `json:"detail,omitempty"`
-	Documentation string `json:"documentation,omitempty"`
+	Kind          int    `json:"kind"`
+	Detail        string `json:"detail"`
+	Documentation string `json:"documentation"`
 }
 
 type CompletionOptions struct {
 	ResolveProvider   bool     `json:"resolveProvider"`
-	TriggerCharacters []string `json:"triggerCharacters,omitempty"`
+	TriggerCharacters []string `json:"triggerCharacters"`
+}
+
+type HoverParams struct {
+	TextDocument TextDocumentIdentifier `json:"textDocument"`
+	Position     Position               `json:"position"`
+}
+
+type HoverResult struct {
+	Contents string `json:"contents"`
+}
+
+type CodeLensOptions struct {
+	ResolveProvider bool `json:"resolveProvider"`
+}
+
+type CodeLens struct {
+	Range   Range    `json:"range"`
+	Command *Command `json:"command,omitempty"`
+	Data    any      `json:"data,omitempty"`
+}
+
+type Command struct {
+	Title   string `json:"title"`
+	Command string `json:"command"`
+	Args    []any  `json:"arguments,omitempty"`
+}
+
+type CodeLensParams struct {
+	TextDocument TextDocumentIdentifier `json:"textDocument"`
 }

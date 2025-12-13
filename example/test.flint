@@ -1,0 +1,7 @@
+pub fun add(x: Int, y: Int) Int {
+    x + y
+}
+
+fn sub(x: Float, y: Float) Float {
+    x -. y
+}

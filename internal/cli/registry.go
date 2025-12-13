@@ -19,7 +19,7 @@ func init() {
 	commands = []Command{
 		{
 			Name:        "run",
-			Description: "Run a Flint program from a source file.",
+			Description: "Compile and execute a Flint source file in a single step.",
 			Run: func(fs *flag.FlagSet) {
 				fs.Parse(os.Args[2:])
 				runFile(os.Args[2])
@@ -27,7 +27,7 @@ func init() {
 		},
 		{
 			Name:        "compile",
-			Description: "Compile Flint code to a backend.",
+			Description: "Compile a Flint program to the selected backend (LLVM IR, object file, or executable).",
 			Run: func(fs *flag.FlagSet) {
 				fs.Parse(os.Args[2:])
 				compileFile(os.Args[2])
@@ -35,15 +35,23 @@ func init() {
 		},
 		{
 			Name:        "check",
-			Description: "Type-check Flint code without executing it.",
+			Description: "Perform full type-checking on a Flint source file without generating code.",
 			Run: func(fs *flag.FlagSet) {
 				fs.Parse(os.Args[2:])
 				checkFile(os.Args[2])
 			},
 		},
 		{
+			Name:        "interpret",
+			Description: "Execute a Flint program using the bytecode virtual machine.",
+			Run: func(fs *flag.FlagSet) {
+				fs.Parse(os.Args[2:])
+				interpretFile(os.Args[2])
+			},
+		},
+		{
 			Name:        "lsp",
-			Description: "Start the Flint Language Server.",
+			Description: "Launch the Flint Language Server for editor integration and IDE features.",
 			Run: func(fs *flag.FlagSet) {
 				fs.Parse(os.Args[2:])
 				startLsp()
@@ -51,14 +59,14 @@ func init() {
 		},
 		{
 			Name:        "version",
-			Description: "Print the Flint compiler version.",
+			Description: "Print the currently installed Flint compiler version.",
 			Run: func(fs *flag.FlagSet) {
 				fmt.Println(version.FullVersion())
 			},
 		},
 		{
 			Name:        "help",
-			Description: "Display general or command-specific help.",
+			Description: "Show help information for Flint or a specific subcommand.",
 			Run: func(fs *flag.FlagSet) {
 				fs.Parse(os.Args[2:])
 				printHelp()

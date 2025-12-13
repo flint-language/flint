@@ -1,6 +1,6 @@
 @external(c, "flint_stdlib", "print")
-pub fn print(string: String) Nil
+pub fun print(string: String) Nil
 
-pub fn main() Int {
+pub fun main() Int {
     val x: Int = 5.5
 }

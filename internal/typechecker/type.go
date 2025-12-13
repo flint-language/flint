@@ -14,12 +14,20 @@ type Type struct {
 	Ret    *Type
 	Elem   *Type
 	TElems []*Type
+
+	VarID    int
+	Family   FamilyKind
+	Concrete ConcreteKind
 }
 
 const (
 	TyError TypeKind = iota
+	TyConcrete
+	TyVar
+	TyFamily
 	TyInt
 	TyFloat
+	TyUnsigned
 	TyBool
 	TyByte
 	TyString
@@ -32,19 +40,26 @@ const (
 
 func (t Type) String() string {
 	switch t.TKind {
-	case TyInt:
-		if PlatformIntBits == 32 {
-			return "Int"
+	case TyVar:
+		if t.Concrete != CnUnknown {
+			return t.Concrete.String()
 		}
+		if t.Family != FamilyUnknown {
+			return fmt.Sprintf("α%d:%s", t.VarID, t.Family.String())
+		}
+		return fmt.Sprintf("α%d", t.VarID)
+	case TyInt:
 		return "Int"
 	case TyFloat:
 		return "Float"
+	case TyUnsigned:
+		return "Unsigned"
 	case TyBool:
 		return "Bool"
-	case TyString:
-		return "String"
 	case TyByte:
 		return "Byte"
+	case TyString:
+		return "String"
 	case TyNil:
 		return "Nil"
 	case TyList:
@@ -68,13 +83,20 @@ func (t Type) String() string {
 		}
 		return "Range(Int)"
 	case TyFunc:
-		parts := []string{}
+		params := []string{}
 		for _, p := range t.Params {
-			parts = append(parts, p.String())
+			params = append(params, p.String())
 		}
-		return fmt.Sprintf("(%s) -> %s", strings.Join(parts, ", "), t.Ret.String())
+		ret := "<unknown>"
+		if t.Ret != nil {
+			ret = t.Ret.String()
+		}
+		return fmt.Sprintf("(%s) -> %s", strings.Join(params, ", "), ret)
+	case TyError:
+		return "<error>"
+	default:
+		return fmt.Sprintf("<unknown:%d>", t.TKind)
 	}
-	return "<error>"
 }
 
 func (t Type) Kind() TypeKind { return t.TKind }

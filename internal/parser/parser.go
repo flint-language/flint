@@ -7,15 +7,24 @@ import (
 )
 
 type Parser struct {
-	tokens []lexer.Token
-	pos    int
-	errors []string
+	tokens      []lexer.Token
+	pos         int
+	errors      []string
+	pendingDocs *DocBlock
 }
 
 func ParseProgram(tokens []lexer.Token) (*Program, []string) {
 	p := new(tokens)
 	out := &Program{Exprs: []Expr{}}
 	for p.cur().Kind != lexer.EndOfFile {
+		if p.cur().Kind == lexer.DocComment {
+			tok := p.eat()
+			p.pendingDocs = &DocBlock{
+				Raw: tok.Lexeme,
+				Pos: tok,
+			}
+			continue
+		}
 		if p.cur().Kind == lexer.Comment {
 			p.eat()
 			continue
@@ -29,6 +38,7 @@ func ParseProgram(tokens []lexer.Token) (*Program, []string) {
 		if fn, ok := expr.(*FuncDeclExpr); ok {
 			fn.Decorators = decorators
 		}
+		p.attachDocs(expr)
 		out.Exprs = append(out.Exprs, expr)
 	}
 	dectectRecursion(out)
@@ -264,6 +274,20 @@ func (p *Parser) parsePrimary() Expr {
 			p.errorAt(tok, fmt.Sprintf("invalid float literal %q", tok.Lexeme))
 		}
 		return &FloatLiteral{Value: f, Raw: tok.Lexeme, Pos: tok}
+	case lexer.Unsigned:
+		p.eat()
+		lex := tok.Lexeme
+		if lex[len(lex)-1] != 'u' {
+			p.errorAt(tok, fmt.Sprintf("invalid unsigned literal %q", tok.Lexeme))
+			return nil
+		}
+		clean := lexer.StripNumericSeparators(lex[:len(lex)-1])
+		v, err := strconv.ParseUint(clean, 10, 64)
+		if err != nil {
+			p.errorAt(tok, fmt.Sprintf("invalid unsigned literal %q", tok.Lexeme))
+			return nil
+		}
+		return &UnsignedLiteral{Value: v, Raw: tok.Lexeme, Pos: tok}
 	case lexer.String:
 		p.eat()
 		value, err := strconv.Unquote(tok.Lexeme)
@@ -319,7 +343,7 @@ func (p *Parser) parsePrimary() Expr {
 	case lexer.KwPub:
 		p.eat()
 		switch p.cur().Kind {
-		case lexer.KwFn:
+		case lexer.KwFun:
 			return p.parseFunc(true)
 		case lexer.KwType:
 			return p.recordTypeExpr(true)
@@ -413,7 +437,7 @@ func (p *Parser) parseMutDecl() Expr {
 }
 
 func (p *Parser) parseFunc(pub bool) Expr {
-	p.expect(lexer.KwFn)
+	p.expect(lexer.KwFun)
 	nameTok, ok := p.expect(lexer.Identifier)
 	if !ok {
 		return nil
@@ -688,7 +712,7 @@ func (p *Parser) parseList() Expr {
 func (p *Parser) parseType() Expr {
 	tok := p.cur()
 	switch tok.Kind {
-	case lexer.KwInt, lexer.KwFloat, lexer.KwBool, lexer.KwByte, lexer.KwString, lexer.KwNil:
+	case lexer.KwInt, lexer.KwI8, lexer.KwI16, lexer.KwI32, lexer.KwI64, lexer.KwFloat, lexer.KwF32, lexer.KwF64, lexer.KwBool, lexer.KwByte, lexer.KwString, lexer.KwUnsigned, lexer.KwU8, lexer.KwU16, lexer.KwU32, lexer.KwU64, lexer.KwNil:
 		p.eat()
 		return &TypeExpr{Name: tok.Lexeme, Pos: tok}
 	case lexer.Identifier:

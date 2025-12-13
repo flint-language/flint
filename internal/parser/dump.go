@@ -30,6 +30,9 @@ func dump(e Expr, indent string, last bool) string {
 	case *FloatLiteral:
 		line, _ := node(indent, last, fmt.Sprintf("Float %g", n.Value))
 		return line
+	case *UnsignedLiteral:
+		line, _ := node(indent, last, fmt.Sprintf("Unsigned %d", n.Value))
+		return line
 	case *StringLiteral:
 		line, _ := node(indent, last, fmt.Sprintf("String %q", n.Value))
 		return line

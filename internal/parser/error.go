@@ -50,7 +50,9 @@ func makeCaret(col int) string {
 	if col < 1 {
 		col = 1
 	}
-	return strings.Repeat(" ", col-1) + "^"
+	// Don't touch for LSP
+	spaces := max(col-1, 0)
+	return fmt.Sprintf("%s^", strings.Repeat(" ", spaces))
 }
 
 func (p *Parser) synchronize() {

@@ -45,6 +45,17 @@ func (i *FloatLiteral) NodeType() string {
 	return "FloatLiteral"
 }
 
+type UnsignedLiteral struct {
+	Value uint64
+	Raw   string
+	Pos   lexer.Token
+}
+
+func (u *UnsignedLiteral) exprNode() {}
+func (u *UnsignedLiteral) NodeType() string {
+	return "UnsignedLiteral"
+}
+
 type StringLiteral struct {
 	Value string
 	Pos   lexer.Token
@@ -128,6 +139,7 @@ type FuncDeclExpr struct {
 	Ret        Expr
 	Body       Expr
 	Decorators []Decorator
+	Docs       *DocBlock
 }
 
 func (f *FuncDeclExpr) exprNode() {}
@@ -333,6 +345,16 @@ type IndexExpr struct {
 func (i *IndexExpr) exprNode() {}
 func (i *IndexExpr) NodeType() string {
 	return "IndexExpr"
+}
+
+type DocBlock struct {
+	Raw string
+	Pos lexer.Token
+}
+
+func (d *DocBlock) exprNode() {}
+func (d *DocBlock) NodeType() string {
+	return "DocBlock"
 }
 
 type Program struct {

@@ -1,0 +1,40 @@
+//! We need to still implement stdlib
+
+use flint/testing.{assert}
+
+fn loop_one(i: Int, acc: Int) Int {
+    if i > 5 then acc else loop_one(i + 1, acc + i)
+}
+
+fn loop_two_inner(i: Int, j: Int, acc: Int) Int {
+    if j > 2 then acc else loop_two_inner(i, j + 1, acc + (i * j))
+}
+
+fn loop_two(i: Int, acc: Int) Int {
+    if i > 3 {
+        acc
+    } else {
+        val acc_two: Int = loop_two_inner(i, 1, acc)
+        loop_two(i + 1, acc_two)
+    }
+}
+
+fn loop_three(i: Int, acc: Int) Int {
+    if i < 10 then loop_three(i + 1, acc + i) else acc
+}
+
+fn loop_four(i: Int, acc: Int) Int {
+    if i < 1 then acc else loop_four(i - 1, acc + i)
+}
+
+fn loop_five(i: Int, acc: Int) Int {
+    if i > 5 then acc else loop_five(i + 2, acc + i)
+}
+
+pub fn main() Nil {
+    assert(loop_one(1, 0) == 15)
+    assert(loop_two(1, 0) == 18)
+    assert(loop_three(10, 0) == 0)
+    assert(loop_four(5, 0) == 15)
+    assert(loop_five(1, 0) == 9)
+}

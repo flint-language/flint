@@ -8,14 +8,11 @@ extern void print(const char *s)
     fputs(s, stdout);
 }
 
-extern void assert(bool cond)
+extern void panic(const char *s)
 {
-    if (!cond)
-    {
-        fprintf(stderr, "Assertion failed\n");
-        fflush(stderr);
-        exit(1);
-    }
+    fputs(s, stderr);
+    fputc('\n', stderr);
+    abort();
 }
 
 extern char *to_string(int64_t i)

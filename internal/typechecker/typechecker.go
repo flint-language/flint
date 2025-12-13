@@ -12,6 +12,7 @@ type TypeChecker struct {
 	errors []string
 	env    *Env
 	ctx    Context
+	subst  Subst
 }
 
 func New() *TypeChecker {
@@ -19,6 +20,7 @@ func New() *TypeChecker {
 		errors: []string{},
 		env:    NewEnv(nil),
 		ctx:    TopLevel,
+		subst:  NewSubst(),
 	}
 }
 
@@ -42,9 +44,11 @@ func (tc *TypeChecker) Check(expr parser.Expr) *Type {
 	}
 	switch e := expr.(type) {
 	case *parser.IntLiteral:
-		return &Type{TKind: TyInt}
+		return NewTypeVar(FamilyInt)
 	case *parser.FloatLiteral:
-		return &Type{TKind: TyFloat}
+		return NewTypeVar(FamilyFloat)
+	case *parser.UnsignedLiteral:
+		return NewTypeVar(FamilyUnsigned)
 	case *parser.BoolLiteral:
 		return &Type{TKind: TyBool}
 	case *parser.StringLiteral:
@@ -125,31 +129,47 @@ func (tc *TypeChecker) visitVarDecl(d *parser.VarDeclExpr) *Type {
 	}
 	if d.Type != nil {
 		declTy := tc.resolveType(d.Type)
-		if varTy != nil && !declTy.Equal(varTy) {
-			return tc.errorAt(d.Name, fmt.Sprintf(
-				"type mismatch in %s '%s': expected %s, got %s",
-				func() string {
-					if d.Mutable {
-						return "mut"
-					}
-					return "val"
-				}(), d.Name.Lexeme, declTy.String(), varTy.String()))
+		if varTy != nil {
+			varTySub := tc.subst.Apply(varTy)
+			declTySub := tc.subst.Apply(declTy)
+			if isLiteral(varTySub) && !sameFamily(varTySub, declTySub) {
+				return tc.errorAt(d.Name, fmt.Sprintf(
+					"cannot assign literal of family %s to variable of type %s",
+					varTySub.Family, declTySub.String()))
+			}
+			if err := tc.subst.Unify(declTySub, varTySub); err != nil {
+				return tc.errorAt(d.Name, fmt.Sprintf(
+					"type mismatch in %s '%s': expected %s, got %s (%v)",
+					func() string {
+						if d.Mutable {
+							return "mut"
+						}
+						return "val"
+					}(), d.Name.Lexeme,
+					declTySub.String(),
+					varTySub.String(),
+					err))
+			}
+			tc.env.SetVar(d.Name.Lexeme, tc.subst.Apply(varTySub), d.Mutable)
+			return tc.subst.Apply(varTySub)
 		}
 		tc.env.SetVar(d.Name.Lexeme, declTy, d.Mutable)
 		return declTy
 	}
-	tc.env.SetVar(d.Name.Lexeme, varTy, d.Mutable)
-	return varTy
+	tc.env.SetVar(d.Name.Lexeme, tc.subst.Apply(varTy), d.Mutable)
+	return tc.subst.Apply(varTy)
 }
 
 func (tc *TypeChecker) visitFuncDecl(fn *parser.FuncDeclExpr) *Type {
 	if _, exists := tc.env.currentScopeGet(fn.Name.Lexeme); exists {
-		return tc.errorAt(fn.Name, fmt.Sprintf("function '%s' already declared in this scope", fn.Name.Lexeme))
+		return tc.errorAt(fn.Name, fmt.Sprintf(
+			"function '%s' already declared in this scope", fn.Name.Lexeme))
 	}
 	paramTypes := make([]*Type, len(fn.Params))
 	for i, p := range fn.Params {
 		if p.Type == nil {
-			return tc.errorAt(p.Name, fmt.Sprintf("parameter '%s' missing type annotation", p.Name.Lexeme))
+			return tc.errorAt(p.Name, fmt.Sprintf(
+				"parameter '%s' missing type annotation", p.Name.Lexeme))
 		}
 		pt := tc.resolveType(p.Type)
 		if pt.TKind == TyError {
@@ -179,12 +199,22 @@ func (tc *TypeChecker) visitFuncDecl(fn *parser.FuncDeclExpr) *Type {
 	}
 	if fn.Body != nil {
 		bodyTy := tc.Check(fn.Body)
-		if fn.Ret != nil && !bodyTy.Equal(retType) {
-			return tc.errorAt(fn.Name, fmt.Sprintf("function '%s' annotated return %s but body has type %s", fn.Name.Lexeme, retType.String(), bodyTy.String()))
+		if fn.Ret != nil {
+			if err := tc.subst.Unify(retType, bodyTy); err != nil {
+				return tc.errorAt(fn.Name, fmt.Sprintf(
+					"function '%s' annotated return %s but body has type %s (%v)",
+					fn.Name.Lexeme,
+					tc.subst.Apply(retType).String(),
+					tc.subst.Apply(bodyTy).String(),
+					err))
+			}
+			fnType.Ret = tc.subst.Apply(retType)
+		} else {
+			fnType.Ret = tc.subst.Apply(bodyTy)
 		}
-		if fn.Ret == nil {
-			fnType.Ret = bodyTy
-		}
+	}
+	for i := range fnType.Params {
+		fnType.Params[i] = tc.subst.Apply(fnType.Params[i])
 	}
 	tc.env = oldEnv
 	return fnType
@@ -239,12 +269,18 @@ func (tc *TypeChecker) visitInfix(e *parser.InfixExpr) *Type {
 		return tc.errorAt(e.Operator, "unknown operator")
 	}
 	for _, sig := range sigs {
-		if left.TKind == sig.Left.TKind && right.TKind == sig.Right.TKind {
-			out := sig.Out
-			return &out
+		leftSig := sig.Left.Fresh()
+		rightSig := sig.Right.Fresh()
+		outSig := sig.Out.Fresh()
+		if err := tc.subst.Unify(left, leftSig); err == nil {
+			if err2 := tc.subst.Unify(right, rightSig); err2 == nil {
+				return tc.subst.Apply(outSig)
+			}
 		}
 	}
-	return tc.errorAt(e.Operator, fmt.Sprintf("invalid operands for '%s': %s and %s", e.Operator.Lexeme, left.String(), right.String()))
+	return tc.errorAt(e.Operator, fmt.Sprintf(
+		"invalid operands for '%s': %s and %s",
+		e.Operator.Lexeme, left.String(), right.String()))
 }
 
 func (tc *TypeChecker) visitUse(u *parser.UseExpr) *Type {
