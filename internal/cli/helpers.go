@@ -33,14 +33,14 @@ func loadAndParse(filename string) (*parser.Program, *typechecker.TypeChecker) {
 		os.Exit(1)
 	}
 
-	for _, ex := range prog.Exprs {
-		if _, err := tc.CheckExpr(ex); err != nil {
-			fatal("Type error: " + err.Error())
-		}
-	}
+	// for _, ex := range prog.Exprs {
+	// 	if _, err := tc.CheckExpr(ex); err != nil {
+	// 		fatal("Type error: " + err.Error())
+	// 	}
+	// }
 
-	for _, ex := range prog.Exprs {
-		fmt.Println(parser.DumpExpr(ex))
-	}
+	// for _, ex := range prog.Exprs {
+	// 	fmt.Println(parser.DumpExpr(ex))
+	// }
 	return prog, tc
 }

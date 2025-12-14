@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="GoLinterSettings">
+    <option name="enabledLinters">
+      <list>
+        <option value="decorder" />
+        <option value="errchkjson" />
+        <option value="cyclop" />
+        <option value="gocritic" />
+        <option value="goconst" />
+        <option value="errcheck" />
+        <option value="dogsled" />
+        <option value="ineffassign" />
+        <option value="arangolint" />
+        <option value="err113" />
+        <option value="embeddedstructfieldcheck" />
+        <option value="durationcheck" />
+        <option value="staticcheck" />
+        <option value="govet" />
+        <option value="dupl" />
+        <option value="errname" />
+        <option value="copyloopvar" />
+        <option value="dupword" />
+        <option value="asciicheck" />
+        <option value="containedctx" />
+        <option value="unused" />
+        <option value="godox" />
+        <option value="godoclint" />
+        <option value="canonicalheader" />
+        <option value="contextcheck" />
+      </list>
+    </option>
+    <option name="linterSelected" value="true" />
+  </component>
+</project>

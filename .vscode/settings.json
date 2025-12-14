@@ -1,0 +1,10 @@
+{
+    "liveshare.autoShareTerminals": true,
+    "cSpell.words": [
+        "FADD",
+        "FDIV",
+        "FMUL",
+        "FSUB",
+        "LTGT"
+    ]
+}

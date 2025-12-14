@@ -1,6 +1,19 @@
-@external(c, "flint_stdlib", "print")
-pub fun print(string: String) Nil
+pub fun add(x: Int, y: Int) Int {
+    x + y
+}
+
+pub fun sub(x: Int, y: Int) Int {
+    x - y
+}
+
+pub fun mult(x: Int, y: Int) Int {
+    x * y
+}
+
+pub fun div(x: Int, y: Int) Int {
+    x / y
+}
 
 pub fun main() Int {
-    val x: Int = 5.5
-}
+    mult(div(mult(add(sub(add(5, 5),sub(add(5, 5), 4)),6),3),3),add(3,4))
+} 
