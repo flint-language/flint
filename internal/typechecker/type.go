@@ -19,18 +19,8 @@ type Type struct {
 const (
 	TyError TypeKind = iota
 	TyInt
-	TyI8
-	TyI16
-	TyI32
-	TyI64
 	TyFloat
-	TyF32
-	TyF64
 	TyUnsigned
-	TyU8
-	TyU16
-	TyU32
-	TyU64
 	TyBool
 	TyByte
 	TyString
@@ -45,30 +35,10 @@ func (t Type) String() string {
 	switch t.TKind {
 	case TyInt:
 		return "Int"
-	case TyI8:
-		return "I8"
-	case TyI16:
-		return "I16"
-	case TyI32:
-		return "I32"
-	case TyI64:
-		return "I64"
 	case TyFloat:
 		return "Float"
-	case TyF32:
-		return "F32"
-	case TyF64:
-		return "F64"
 	case TyUnsigned:
 		return "Unsigned"
-	case TyU8:
-		return "U8"
-	case TyU16:
-		return "U16"
-	case TyU32:
-		return "U32"
-	case TyU64:
-		return "U64"
 	case TyBool:
 		return "Bool"
 	case TyByte:

@@ -1,3 +1,7 @@
-fun test() Unsigned { 
-    5
+fun add(x: Int, y: Int) Int {
+    x + y
+}
+
+pub fun main() Int {
+    10 |> (fn v: Int => add(v, 10))
 }

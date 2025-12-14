@@ -147,6 +147,28 @@ func (f *FuncDeclExpr) NodeType() string {
 	return "FuncDeclExpr"
 }
 
+type FuncExpr struct {
+	Params []Param
+	Body   Expr
+	Pos    lexer.Token
+}
+
+func (f *FuncExpr) exprNode() {}
+func (f *FuncExpr) NodeType() string {
+	return "FuncExpr"
+}
+
+type FuncTypeExpr struct {
+	Params []Expr
+	Ret    Expr
+	Pos    lexer.Token
+}
+
+func (f *FuncTypeExpr) exprNode() {}
+func (f *FuncTypeExpr) NodeType() string {
+	return "FuncTypeExpr"
+}
+
 type Param struct {
 	Name lexer.Token
 	Type Expr

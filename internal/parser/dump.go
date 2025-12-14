@@ -59,7 +59,6 @@ func dump(e Expr, indent string, last bool) string {
 		out.WriteString(dump(n.Callee, cNext, true))
 		if len(n.Args) > 0 {
 			aLine, aNext := node(next, true, "Args")
-			out.WriteString("\n")
 			out.WriteString(aLine)
 			for i, arg := range n.Args {
 				out.WriteString(dump(arg, aNext, i == len(n.Args)-1))
@@ -250,7 +249,6 @@ func dump(e Expr, indent string, last bool) string {
 		out.WriteString(line)
 		if len(n.Args) > 0 {
 			argsLine, argsNext := node(next, true, "Args")
-			out.WriteString("\n")
 			out.WriteString(argsLine)
 			for i, arg := range n.Args {
 				out.WriteString(dump(arg, argsNext, i == len(n.Args)-1))
@@ -278,6 +276,44 @@ func dump(e Expr, indent string, last bool) string {
 		iLine, iNext := node(next, true, "Index")
 		out.WriteString(iLine)
 		out.WriteString(dump(n.Index, iNext, true))
+		return out.String()
+	case *FuncExpr:
+		line, next := node(indent, last, "FuncExpr")
+		var out strings.Builder
+		out.WriteString(line)
+		pLine, pNext := node(next, false, "Params")
+		out.WriteString(pLine)
+		for i, p := range n.Params {
+			paramLine, paramNext := node(
+				pNext,
+				i == len(n.Params)-1,
+				"Param name="+p.Name.Lexeme,
+			)
+			out.WriteString(paramLine)
+			if p.Type != nil {
+				out.WriteString(dump(p.Type, paramNext, true))
+			}
+		}
+		bLine, bNext := node(next, true, "Body")
+		out.WriteString(bLine)
+		out.WriteString(dump(n.Body, bNext, true))
+		return out.String()
+	case *FuncTypeExpr:
+		line, next := node(indent, last, "FuncType")
+		var out strings.Builder
+		out.WriteString(line)
+		if len(n.Params) > 0 {
+			pLine, pNext := node(next, false, "Params")
+			out.WriteString(pLine)
+			for i, t := range n.Params {
+				out.WriteString(dump(t, pNext, i == len(n.Params)-1))
+			}
+		}
+		if n.Ret != nil {
+			rLine, rNext := node(next, true, "ReturnType")
+			out.WriteString(rLine)
+			out.WriteString(dump(n.Ret, rNext, true))
+		}
 		return out.String()
 	default:
 		line, _ := node(indent, last, fmt.Sprintf("<unknown %T>", n))

@@ -348,6 +348,8 @@ func (p *Parser) parsePrimary() Expr {
 		}
 	case lexer.KwFun:
 		return p.parseFunc(false)
+	case lexer.KwFn:
+		return p.parseAnonFunc()
 	case lexer.LeftBrace:
 		return p.parseBlock()
 	case lexer.KwUse:
@@ -415,9 +417,6 @@ func (p *Parser) parseVarDecl(mutable bool) Expr {
 		}
 		p.errorAt(nameTok, fmt.Sprintf("missing initializer for %s %s", kind, nameTok.Lexeme))
 	}
-	if typeAnn != nil {
-		value = p.coerceExprToType(value, typeAnn)
-	}
 	return &VarDeclExpr{
 		Mutable: mutable,
 		Name:    nameTok,
@@ -475,9 +474,6 @@ func (p *Parser) parseFunc(pub bool) Expr {
 	var body Expr
 	if p.cur().Kind == lexer.LeftBrace {
 		body = p.parseBlock()
-		if retType != nil {
-			body = p.coerceExprToType(body, retType)
-		}
 	}
 	return &FuncDeclExpr{
 		Pub:        pub,
@@ -486,6 +482,69 @@ func (p *Parser) parseFunc(pub bool) Expr {
 		Ret:        retType,
 		Body:       body,
 		Decorators: nil,
+	}
+}
+
+func (p *Parser) parseAnonFunc() Expr {
+	start := p.eat()
+	params := []Param{}
+	if p.cur().Kind == lexer.LeftParen {
+		p.eat()
+		if p.cur().Kind != lexer.RightParen {
+			for {
+				nameTok, ok := p.expect(lexer.Identifier)
+				if !ok {
+					return nil
+				}
+				var typ Expr
+				if p.cur().Kind == lexer.Colon {
+					p.eat()
+					typ = p.parseType()
+				}
+				params = append(params, Param{
+					Name: nameTok,
+					Type: typ,
+				})
+				if p.cur().Kind == lexer.Comma {
+					p.eat()
+					continue
+				}
+				break
+			}
+		}
+		p.expect(lexer.RightParen)
+	} else {
+		nameTok, ok := p.expect(lexer.Identifier)
+		if !ok {
+			p.errorAt(p.cur(), "expected parameter name after fn")
+			return nil
+		}
+
+		var typ Expr
+		if p.cur().Kind == lexer.Colon {
+			p.eat()
+			typ = p.parseType()
+		}
+
+		params = append(params, Param{
+			Name: nameTok,
+			Type: typ,
+		})
+	}
+	if _, ok := p.expect(lexer.RRArrow); !ok {
+		p.errorAt(p.cur(), "expected '=>' after fn parameters")
+		return nil
+	}
+	var body Expr
+	if p.cur().Kind == lexer.LeftBrace {
+		body = p.parseBlock()
+	} else {
+		body = p.parseExpression(0)
+	}
+	return &FuncExpr{
+		Params: params,
+		Body:   body,
+		Pos:    start,
 	}
 }
 
@@ -705,9 +764,40 @@ func (p *Parser) parseList() Expr {
 }
 
 func (p *Parser) parseType() Expr {
+	left := p.parseAtomicType()
+	if left == nil {
+		return nil
+	}
+	if p.cur().Kind == lexer.RArrow {
+		arrow := p.eat()
+		right := p.parseType()
+		if right == nil {
+			p.errorAt(arrow, "expected return type after '->'")
+			return nil
+		}
+		var params []Expr
+		if tup, ok := left.(*TupleTypeExpr); ok {
+			params = tup.Types
+		} else {
+			params = []Expr{left}
+		}
+
+		return &FuncTypeExpr{
+			Params: params,
+			Ret:    right,
+			Pos:    arrow,
+		}
+	}
+
+	return left
+}
+
+func (p *Parser) parseAtomicType() Expr {
 	tok := p.cur()
 	switch tok.Kind {
-	case lexer.KwInt, lexer.KwI8, lexer.KwI16, lexer.KwI32, lexer.KwI64, lexer.KwFloat, lexer.KwF32, lexer.KwF64, lexer.KwBool, lexer.KwByte, lexer.KwString, lexer.KwUnsigned, lexer.KwU8, lexer.KwU16, lexer.KwU32, lexer.KwU64, lexer.KwNil:
+	case lexer.KwInt, lexer.KwFloat, lexer.KwBool,
+		lexer.KwByte, lexer.KwString,
+		lexer.KwUnsigned, lexer.KwNil:
 		p.eat()
 		return &TypeExpr{Name: tok.Lexeme, Pos: tok}
 	case lexer.Identifier:
@@ -715,13 +805,13 @@ func (p *Parser) parseType() Expr {
 		return &TypeExpr{Name: tok.Lexeme, Pos: tok}
 	case lexer.KwList:
 		p.eat()
-		var elemType Expr
+		var elem Expr
 		if p.cur().Kind == lexer.LeftParen {
 			p.eat()
-			elemType = p.parseType()
+			elem = p.parseType()
 			p.expect(lexer.RightParen)
 		}
-		return &TypeExpr{Name: "List", Pos: tok, Generic: elemType}
+		return &TypeExpr{Name: "List", Generic: elem, Pos: tok}
 	case lexer.LeftParen:
 		p.eat()
 		types := []Expr{}
@@ -737,13 +827,10 @@ func (p *Parser) parseType() Expr {
 			}
 			break
 		}
-		if _, ok := p.expect(lexer.RightParen); !ok {
-			p.synchronize()
-			return nil
-		}
+		p.expect(lexer.RightParen)
 		return &TupleTypeExpr{Types: types, Pos: tok}
 	default:
-		p.errorAt(tok, fmt.Sprintf("expected type, got %q (%v)", tok.Lexeme, tok.Kind))
+		p.errorAt(tok, fmt.Sprintf("expected type, got %q", tok.Lexeme))
 		return nil
 	}
 }

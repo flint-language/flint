@@ -71,6 +71,7 @@ const (
 	Pipe
 	Dot
 	RArrow
+	RRArrow
 	DotDot
 	At
 	Underscore
@@ -81,17 +82,11 @@ const (
 	KwByte
 	KwElse
 	KwFloat
-	KwF32
-	KwF64
 	KwFn
 	KwFun
 	KwIf
 	KwIn
 	KwInt
-	KwI8
-	KwI16
-	KwI32
-	KwI64
 	KwList
 	KwMatch
 	KwMut
@@ -102,10 +97,6 @@ const (
 	KwType
 	KwUse
 	KwUnsigned
-	KwU8
-	KwU16
-	KwU32
-	KwU64
 	KwVal
 )
 
@@ -116,16 +107,10 @@ var KeywordMap = map[string]TokenKind{
 	"else":     KwElse,
 	"False":    Bool,
 	"Float":    KwFloat,
-	"F32":      KwF32,
-	"F64":      KwF64,
 	"fn":       KwFn,
 	"fun":      KwFun,
 	"if":       KwIf,
 	"Int":      KwInt,
-	"I8":       KwI8,
-	"I16":      KwI16,
-	"I32":      KwI32,
-	"I64":      KwI64,
 	"List":     KwList,
 	"match":    KwMatch,
 	"mut":      KwMut,
@@ -137,10 +122,6 @@ var KeywordMap = map[string]TokenKind{
 	"type":     KwType,
 	"use":      KwUse,
 	"Unsigned": KwUnsigned,
-	"U8":       KwU8,
-	"U16":      KwU16,
-	"U32":      KwU32,
-	"U64":      KwU64,
 	"val":      KwVal,
 }
 

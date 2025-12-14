@@ -73,6 +73,12 @@ func (tc *TypeChecker) Check(expr parser.Expr) *Type {
 		ty := tc.visitCall(e)
 		tc.ctx = oldCtx
 		return ty
+	case *parser.FuncExpr:
+		oldCtx := tc.ctx
+		tc.ctx = FunctionBody
+		ty := tc.visitFuncExpr(e)
+		tc.ctx = oldCtx
+		return ty
 	case *parser.BlockExpr:
 		return tc.visitBlock(e)
 	case *parser.UseExpr:
@@ -127,18 +133,15 @@ func (tc *TypeChecker) visitVarDecl(d *parser.VarDeclExpr) *Type {
 	}
 	if d.Type != nil {
 		declTy := tc.resolveType(d.Type)
-		if varTy != nil {
-			varTy = tc.coerceLiteralTo(declTy, varTy)
-			if !declTy.Equal(varTy) {
-				return tc.errorAt(d.Name, fmt.Sprintf(
-					"type mismatch in %s '%s': expected %s, got %s",
-					func() string {
-						if d.Mutable {
-							return "mut"
-						}
-						return "val"
-					}(), d.Name.Lexeme, declTy.String(), varTy.String()))
-			}
+		if varTy != nil && !declTy.Equal(varTy) {
+			return tc.errorAt(d.Name, fmt.Sprintf(
+				"type mismatch in %s '%s': expected %s, got %s",
+				func() string {
+					if d.Mutable {
+						return "mut"
+					}
+					return "val"
+				}(), d.Name.Lexeme, declTy.String(), varTy.String()))
 		}
 		tc.env.SetVar(d.Name.Lexeme, declTy, d.Mutable)
 		return declTy
@@ -184,11 +187,8 @@ func (tc *TypeChecker) visitFuncDecl(fn *parser.FuncDeclExpr) *Type {
 	}
 	if fn.Body != nil {
 		bodyTy := tc.Check(fn.Body)
-		if fn.Ret != nil {
-			coercedTy := tc.coerceLiteralTo(retType, bodyTy)
-			if !coercedTy.Equal(retType) {
-				return tc.errorAt(fn.Name, fmt.Sprintf("function '%s' annotated return %s but body has type %s", fn.Name.Lexeme, retType.String(), bodyTy.String()))
-			}
+		if fn.Ret != nil && !bodyTy.Equal(retType) {
+			return tc.errorAt(fn.Name, fmt.Sprintf("function '%s' annotated return %s but body has type %s", fn.Name.Lexeme, retType.String(), bodyTy.String()))
 		}
 		if fn.Ret == nil {
 			fnType.Ret = bodyTy
@@ -213,6 +213,36 @@ func (tc *TypeChecker) visitCall(c *parser.CallExpr) *Type {
 		}
 	}
 	return calleeTy.Ret
+}
+
+func (tc *TypeChecker) visitFuncExpr(fn *parser.FuncExpr) *Type {
+	paramTypes := make([]*Type, len(fn.Params))
+	for i, p := range fn.Params {
+		if p.Type == nil {
+			return tc.errorAt(p.Name, fmt.Sprintf(
+				"parameter '%s' missing type annotation in anonymous function",
+				p.Name.Lexeme,
+			))
+		}
+		pt := tc.resolveType(p.Type)
+		if pt.TKind == TyError {
+			return &Type{TKind: TyError}
+		}
+		paramTypes[i] = pt
+	}
+	oldEnv := tc.env
+	tc.env = NewEnv(oldEnv)
+	for i, p := range fn.Params {
+		tc.env.Set(p.Name.Lexeme, paramTypes[i])
+	}
+	bodyTy := tc.Check(fn.Body)
+	tc.env = oldEnv
+
+	return &Type{
+		TKind:  TyFunc,
+		Params: paramTypes,
+		Ret:    bodyTy,
+	}
 }
 
 func (tc *TypeChecker) visitBlock(b *parser.BlockExpr) *Type {
@@ -360,30 +390,22 @@ func (tc *TypeChecker) visitPipeline(p *parser.PipelineExpr) *Type {
 	if leftTy.TKind == TyError {
 		return &Type{TKind: TyError}
 	}
-	switch r := p.Right.(type) {
-	case *parser.Identifier:
-		fnTy, ok := tc.env.Get(r.Name)
-		if !ok {
-			return tc.errorAt(r.Pos, "undefined function: "+r.Name)
-		}
-		if fnTy.TKind != TyFunc || len(fnTy.Params) == 0 {
-			return tc.errorAt(r.Pos, fmt.Sprintf("cannot pipe to non-function or function with no parameters: %s", r.Name))
-		}
-		if !fnTy.Params[0].Equal(leftTy) {
-			return tc.errorAt(r.Pos, fmt.Sprintf("type mismatch in pipeline: expected %s, got %s", fnTy.Params[0].String(), leftTy.String()))
-		}
-		return fnTy.Ret
-	case *parser.CallExpr:
-		args := append([]parser.Expr{p.Left}, r.Args...)
-		call := &parser.CallExpr{
-			Callee: r.Callee,
-			Args:   args,
-			Pos:    r.Pos,
-		}
-		return tc.Check(call)
-	default:
-		return tc.errorAt(p.Pos, "right side of pipeline must be a function or call")
+	rightTy := tc.Check(p.Right)
+	if rightTy.TKind != TyFunc {
+		return tc.errorAt(p.Pos,
+			fmt.Sprintf("right side of pipeline must be a function, got %s", rightTy.String()))
 	}
+	if len(rightTy.Params) == 0 {
+		return tc.errorAt(p.Pos, "pipeline target must take at least one argument")
+	}
+	if !rightTy.Params[0].Equal(leftTy) {
+		return tc.errorAt(p.Pos, fmt.Sprintf(
+			"type mismatch in pipeline: expected %s, got %s",
+			rightTy.Params[0].String(),
+			leftTy.String(),
+		))
+	}
+	return rightTy.Ret
 }
 
 func (tc *TypeChecker) visitList(l *parser.ListExpr, annotated *Type) *Type {

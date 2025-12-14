@@ -69,9 +69,11 @@ func (l *Lexer) Next() Token {
 		if l.peekRuneAt(0) == '=' {
 			l.advanceRune()
 			return l.makeToken(EqualEqual, "==", startlineNumber, startcolumnNumber)
+		} else if l.peekRuneAt(0) == '>' {
+			l.advanceRune()
+			return l.makeToken(RRArrow, "=>", startlineNumber, startcolumnNumber)
 		}
 		return l.makeToken(Equal, "=", startlineNumber, startcolumnNumber)
-
 	case '!':
 		l.advanceRune()
 		if l.peekRuneAt(0) == '=' {

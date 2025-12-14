@@ -50,6 +50,14 @@ func init() {
 			},
 		},
 		{
+			Name:        "repl",
+			Description: "Launch an interactive Read-Eval-Print Loop (REPL) for Flint.",
+			Run: func(fs *flag.FlagSet) {
+				fs.Parse(os.Args[2:])
+				startRepl()
+			},
+		},
+		{
 			Name:        "lsp",
 			Description: "Launch the Flint Language Server for editor integration and IDE features.",
 			Run: func(fs *flag.FlagSet) {
