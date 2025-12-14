@@ -9,31 +9,31 @@ func (tc *TypeChecker) resolveType(t parser.Expr) *Type {
 	case *parser.TypeExpr:
 		switch typ.Name {
 		case "Int":
-			return NewTypeVar(FamilyInt)
+			return &Type{TKind: TyInt}
 		case "Float":
-			return NewTypeVar(FamilyFloat)
+			return &Type{TKind: TyFloat}
 		case "Unsigned":
-			return NewTypeVar(FamilyUnsigned)
+			return &Type{TKind: TyUnsigned}
 		case "I8":
-			return &Type{TKind: TyConcrete, Concrete: CI8, Family: FamilyInt}
+			return &Type{TKind: TyI8}
 		case "I16":
-			return &Type{TKind: TyConcrete, Concrete: CI16, Family: FamilyInt}
+			return &Type{TKind: TyI16}
 		case "I32":
-			return &Type{TKind: TyConcrete, Concrete: CI32, Family: FamilyInt}
+			return &Type{TKind: TyI32}
 		case "I64":
-			return &Type{TKind: TyConcrete, Concrete: CI64, Family: FamilyInt}
+			return &Type{TKind: TyI64}
 		case "U8":
-			return &Type{TKind: TyConcrete, Concrete: CU8, Family: FamilyUnsigned}
+			return &Type{TKind: TyU8}
 		case "U16":
-			return &Type{TKind: TyConcrete, Concrete: CU16, Family: FamilyUnsigned}
+			return &Type{TKind: TyU16}
 		case "U32":
-			return &Type{TKind: TyConcrete, Concrete: CU32, Family: FamilyUnsigned}
+			return &Type{TKind: TyU32}
 		case "U64":
-			return &Type{TKind: TyConcrete, Concrete: CU64, Family: FamilyUnsigned}
+			return &Type{TKind: TyU64}
 		case "F32":
-			return &Type{TKind: TyConcrete, Concrete: CF32, Family: FamilyFloat}
+			return &Type{TKind: TyF32}
 		case "F64":
-			return &Type{TKind: TyConcrete, Concrete: CF64, Family: FamilyFloat}
+			return &Type{TKind: TyF64}
 		case "Bool":
 			return &Type{TKind: TyBool}
 		case "String":
@@ -68,25 +68,27 @@ func (e *Env) currentScopeGet(name string) (*VarInfo, bool) {
 	return &ty, true
 }
 
-func isLiteral(t *Type) bool {
-	switch t.TKind {
-	case TyVar:
-		return t.Family == FamilyInt || t.Family == FamilyFloat || t.Family == FamilyUnsigned
-	case TyInt, TyUnsigned, TyFloat:
-		return true
-	default:
-		return false
+func (tc *TypeChecker) coerceLiteralTo(expected, actual *Type) *Type {
+	if actual == nil || expected == nil {
+		return actual
 	}
-}
-
-func sameFamily(a, b *Type) bool {
-	fa := a.Family
-	fb := b.Family
-	if a.TKind == TyInt || a.TKind == TyUnsigned || a.TKind == TyFloat {
-		fa = a.Family
+	if actual.TKind == TyInt {
+		switch expected.TKind {
+		case TyI8, TyI16, TyI32, TyI64, TyInt:
+			return expected
+		}
 	}
-	if b.TKind == TyInt || b.TKind == TyUnsigned || b.TKind == TyFloat {
-		fb = b.Family
+	if actual.TKind == TyUnsigned {
+		switch expected.TKind {
+		case TyU8, TyU16, TyU32, TyU64, TyUnsigned:
+			return expected
+		}
 	}
-	return fa == fb
+	if actual.TKind == TyFloat {
+		switch expected.TKind {
+		case TyF32, TyF64, TyFloat:
+			return expected
+		}
+	}
+	return actual
 }

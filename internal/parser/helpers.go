@@ -51,3 +51,51 @@ func (p *Parser) attachDocs(expr Expr) {
 	}
 	p.pendingDocs = nil
 }
+
+func (p *Parser) coerceExprToType(expr Expr, typ Expr) Expr {
+	switch e := expr.(type) {
+	case *IntLiteral:
+		if t, ok := typ.(*TypeExpr); ok {
+			switch t.Name {
+			case "U32", "U64", "U16", "U8", "Unsigned":
+				return &UnsignedLiteral{Value: uint64(e.Value), Raw: e.Raw, Pos: e.Pos}
+			}
+		}
+	case *UnsignedLiteral:
+		if t, ok := typ.(*TypeExpr); ok {
+			switch t.Name {
+			case "I32", "I64", "I16", "I8", "Int":
+				return &IntLiteral{Value: int64(e.Value), Raw: e.Raw, Pos: e.Pos}
+			}
+		}
+	case *FloatLiteral:
+		if t, ok := typ.(*TypeExpr); ok {
+			switch t.Name {
+			case "F32", "F64", "Float":
+				return &FloatLiteral{Value: e.Value, Raw: e.Raw, Pos: e.Pos}
+			}
+		}
+	case *InfixExpr:
+		e.Left = p.coerceExprToType(e.Left, typ)
+		e.Right = p.coerceExprToType(e.Right, typ)
+	case *PrefixExpr:
+		e.Right = p.coerceExprToType(e.Right, typ)
+	case *CallExpr:
+		for i := range e.Args {
+			e.Args[i] = p.coerceExprToType(e.Args[i], typ)
+		}
+	case *BlockExpr:
+		for i := range e.Exprs {
+			e.Exprs[i] = p.coerceExprToType(e.Exprs[i], typ)
+		}
+	case *TupleExpr:
+		for i := range e.Elements {
+			e.Elements[i] = p.coerceExprToType(e.Elements[i], typ)
+		}
+	case *ListExpr:
+		for i := range e.Elements {
+			e.Elements[i] = p.coerceExprToType(e.Elements[i], typ)
+		}
+	}
+	return expr
+}

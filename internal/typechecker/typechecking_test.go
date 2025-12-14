@@ -81,7 +81,7 @@ func TestTypeMismatch(t *testing.T) {
 
 func TestFunctionDeclaration(t *testing.T) {
 	ty, err := typeOf(t, `
-fn add(x: Int, y: Int) Int {
+fun add(x: Int, y: Int) Int {
 	x + y
 }
 `)
@@ -96,11 +96,78 @@ fn add(x: Int, y: Int) Int {
 
 func TestFunctionBadReturn(t *testing.T) {
 	_, err := typeOf(t, `
-fn bad(x: Int) Bool {
+fun bad(x: Int) Bool {
 	x
 }
 `)
 	if err == nil {
 		t.Fatal("expected type error for return mismatch")
+	}
+}
+
+func TestUnsignedCoercion(t *testing.T) {
+	ty, err := typeOf(t, `
+fun test() U32 { 
+	val x: U32 = 10 + 1
+	x 
+}
+`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if ty.Ret.TKind != TyU32 {
+		t.Fatalf("expected U32, got %s", ty)
+	}
+}
+
+func TestFloatCoercion(t *testing.T) {
+	ty, err := typeOf(t, `
+fun test() F64 { 
+	val x: F64 = 1.0 +. 2.0 
+	x
+}
+`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if ty.Ret.TKind != TyF64 {
+		t.Fatalf("expected F64, got %s", ty)
+	}
+}
+
+func TestNestedInfixCoercion(t *testing.T) {
+	ty, err := typeOf(t, `fun test() U32 { val x: U32 = 1 + 2 + 3 }`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if ty.Ret.TKind != TyU32 {
+		t.Fatalf("expected U32, got %s", ty)
+	}
+}
+
+func TestInvalidAdditionMixTypes(t *testing.T) {
+	_, err := typeOf(t, `val x: Int = 1 + 2.5`)
+	if err == nil {
+		t.Fatal("expected type error for mixing Int + Float")
+	}
+}
+
+func TestUnsignedAddition(t *testing.T) {
+	ty, err := typeOf(t, `fun test() U64 { val x: U64 = 10 + 20 }`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if ty.Ret.TKind != TyU64 {
+		t.Fatalf("expected U64, got %s", ty)
+	}
+}
+
+func TestFloatArithmetic(t *testing.T) {
+	ty, err := typeOf(t, `fun test() F32 { val x: F32 = 1.5 +. 2.5 }`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if ty.Ret.TKind != TyF32 {
+		t.Fatalf("expected F32, got %s", ty)
 	}
 }

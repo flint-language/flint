@@ -1,7 +1,3 @@
-pub fun add(x: Int, y: Int) Int {
-    x + y
-}
-
-fun sub(x: Float, y: Float) Float {
-    x -. y
+fun test() Unsigned { 
+    5
 }

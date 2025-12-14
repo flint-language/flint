@@ -118,7 +118,7 @@ func TestValDecl(t *testing.T) {
 
 func TestFunctionDecl(t *testing.T) {
 	src := `
-fn add(x: Int, y: Int) Int {
+fun add(x: Int, y: Int) Int {
 	x + y
 }
 `
@@ -128,17 +128,17 @@ fn add(x: Int, y: Int) Int {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
 
-	fn, ok := prog.Exprs[0].(*FuncDeclExpr)
+	fun, ok := prog.Exprs[0].(*FuncDeclExpr)
 	if !ok {
 		t.Fatalf("expected FuncDeclExpr, got %T", prog.Exprs[0])
 	}
 
-	if fn.Name.Lexeme != "add" {
-		t.Fatalf("wrong function name %s", fn.Name.Lexeme)
+	if fun.Name.Lexeme != "add" {
+		t.Fatalf("wrong function name %s", fun.Name.Lexeme)
 	}
 
-	if len(fn.Params) != 2 {
-		t.Fatalf("expected 2 params, got %d", len(fn.Params))
+	if len(fun.Params) != 2 {
+		t.Fatalf("expected 2 params, got %d", len(fun.Params))
 	}
 }
 
@@ -169,7 +169,7 @@ func TestMissingRHS(t *testing.T) {
 }
 
 func TestBadFunctionSyntax(t *testing.T) {
-	_, errs := parseSrc(t, `fn (x) { x }`)
+	_, errs := parseSrc(t, `fun (x) { x }`)
 
 	if len(errs) == 0 {
 		t.Fatal("expected error for missing function name")

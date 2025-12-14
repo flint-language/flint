@@ -276,12 +276,7 @@ func (p *Parser) parsePrimary() Expr {
 		return &FloatLiteral{Value: f, Raw: tok.Lexeme, Pos: tok}
 	case lexer.Unsigned:
 		p.eat()
-		lex := tok.Lexeme
-		if lex[len(lex)-1] != 'u' {
-			p.errorAt(tok, fmt.Sprintf("invalid unsigned literal %q", tok.Lexeme))
-			return nil
-		}
-		clean := lexer.StripNumericSeparators(lex[:len(lex)-1])
+		clean := lexer.StripNumericSeparators(tok.Lexeme)
 		v, err := strconv.ParseUint(clean, 10, 64)
 		if err != nil {
 			p.errorAt(tok, fmt.Sprintf("invalid unsigned literal %q", tok.Lexeme))
@@ -348,10 +343,10 @@ func (p *Parser) parsePrimary() Expr {
 		case lexer.KwType:
 			return p.recordTypeExpr(true)
 		default:
-			p.errorAt(p.cur(), "expected `fn` or `type` after `pub`")
+			p.errorAt(p.cur(), "expected `fun` or `type` after `pub`")
 			return nil
 		}
-	case lexer.KwFn:
+	case lexer.KwFun:
 		return p.parseFunc(false)
 	case lexer.LeftBrace:
 		return p.parseBlock()
@@ -420,6 +415,9 @@ func (p *Parser) parseVarDecl(mutable bool) Expr {
 		}
 		p.errorAt(nameTok, fmt.Sprintf("missing initializer for %s %s", kind, nameTok.Lexeme))
 	}
+	if typeAnn != nil {
+		value = p.coerceExprToType(value, typeAnn)
+	}
 	return &VarDeclExpr{
 		Mutable: mutable,
 		Name:    nameTok,
@@ -442,12 +440,10 @@ func (p *Parser) parseFunc(pub bool) Expr {
 	if !ok {
 		return nil
 	}
-
 	if _, ok := p.expect(lexer.LeftParen); !ok {
 		p.synchronize()
 		return nil
 	}
-
 	params := []Param{}
 	if p.cur().Kind != lexer.RightParen {
 		for {
@@ -468,22 +464,21 @@ func (p *Parser) parseFunc(pub bool) Expr {
 			break
 		}
 	}
-
 	if _, ok := p.expect(lexer.RightParen); !ok {
 		p.synchronize()
 		return nil
 	}
-
 	var retType Expr
 	if p.cur().Kind != lexer.LeftBrace && p.cur().Kind != lexer.EndOfFile {
 		retType = p.parseType()
 	}
-
 	var body Expr
 	if p.cur().Kind == lexer.LeftBrace {
 		body = p.parseBlock()
+		if retType != nil {
+			body = p.coerceExprToType(body, retType)
+		}
 	}
-
 	return &FuncDeclExpr{
 		Pub:        pub,
 		Name:       nameTok,

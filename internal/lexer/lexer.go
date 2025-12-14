@@ -269,15 +269,6 @@ func (l *Lexer) scanNumberLiteral() (string, TokenKind) {
 		}
 		l.advanceRune()
 	}
-	if l.peekRuneAt(0) == 'u' {
-		l.advanceRune()
-		lex := string(l.source[start:l.position])
-		clean := StripNumericSeparators(lex[:len(lex)-1])
-		if _, err := strconv.ParseUint(clean, 10, 64); err == nil {
-			return lex, Unsigned
-		}
-		return lex, Illegal
-	}
 	lex := string(l.source[start:l.position])
 	clean := StripNumericSeparators(lex)
 	if isFloat {

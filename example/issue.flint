@@ -1,7 +1,7 @@
 @external(c, "flint_stdlib", "print")
-pub fn print(string: String) Nil
+pub fun print(string: String) Nil
 
-pub fn main() Nil {
+pub fun main() Nil {
     val x: Int = 10
     match x {
         | 10 -> print("Ten")
